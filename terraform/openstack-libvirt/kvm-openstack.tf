@@ -24,41 +24,12 @@ resource "libvirt_pool" "openstack_pool" {
   }
 }
 
-resource "null_resource" "fix_pool_permissions" {
-  depends_on = [libvirt_pool.openstack_pool]
-  provisioner "local-exec" {
-    command = "chown root:${var.libvirt_qemu_group_id} ${var.storage_pool_path} && chmod 0770 ${var.storage_pool_path}"
-  }
-}
-
 # Base OS image
 resource "libvirt_volume" "ubuntu_qcow2" {
   name   = "ubuntu-22.04.qcow2"
   pool   = libvirt_pool.openstack_pool.name
   source = var.image_source
   format = "qcow2"
-}
-
-resource "null_resource" "fix_volume_permissions" {
-  depends_on = [libvirt_volume.ubuntu_qcow2]
-  provisioner "local-exec" {
-    command = <<EOT
-      for i in {1..5}; do
-        if [ -f /var/lib/libvirt/images/ubuntu-22.04.qcow2 ]; then
-          chmod 0640 /var/lib/libvirt/images/ubuntu-22.04.qcow2
-          chgrp 64055 /var/lib/libvirt/images/ubuntu-22.04.qcow2
-          if [ "$(stat -c %g /var/lib/libvirt/images/ubuntu-22.04.qcow2)" -eq 64055 ]; then
-            echo "Permissions and group set successfully"
-            exit 0
-          fi
-        fi
-        echo "Retry $i: File not ready or group not set, waiting..."
-        sleep 2
-      done
-      echo "Failed to set permissions after retries" >&2
-      exit 1
-    EOT
-  }
 }
 
 # Network
@@ -150,7 +121,6 @@ resource "libvirt_domain" "controller" {
   cpu {
     mode = "host-passthrough"
   }
-  depends_on = [null_resource.fix_volume_permissions]
 }
 
 # Compute nodes
@@ -182,7 +152,6 @@ resource "libvirt_domain" "compute" {
   cpu {
     mode = "host-passthrough"
   }
-  depends_on = [null_resource.fix_volume_permissions]
 }
 
 # Storage nodes
@@ -214,7 +183,6 @@ resource "libvirt_domain" "storage" {
   cpu {
     mode = "host-passthrough"
   }
-  depends_on = [null_resource.fix_volume_permissions]
 }
 
 # Additional disks for controller nodes
