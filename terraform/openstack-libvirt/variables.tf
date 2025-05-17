@@ -10,6 +10,12 @@ variable "storage_pool_path" {
   default     = "/var/lib/libvirt/images"
 }
 
+variable "libvirt_qemu_group_id" {
+  description = "Your libvirt-qemu group id"
+  type        = string
+  default     = "64055"
+}
+
 variable "controller_count" {
   description = "Number of controller nodes"
   type        = number

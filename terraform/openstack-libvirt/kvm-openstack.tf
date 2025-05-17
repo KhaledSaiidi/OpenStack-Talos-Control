@@ -2,7 +2,7 @@ terraform {
   required_providers {
     libvirt = {
       source  = "dmacvicar/libvirt"
-      version = "0.7.1"
+      version = "~> 0.8.0"  # Use the latest compatible version
     }
     tls = {
       source  = "hashicorp/tls"
@@ -19,19 +19,16 @@ provider "libvirt" {
 resource "libvirt_pool" "openstack_pool" {
   name = var.storage_pool
   type = "dir"
-  path = var.storage_pool_path
+  target {
+    path = var.storage_pool_path
+  }
 }
 
-# Fix pool directory permissions
 resource "null_resource" "fix_pool_permissions" {
-  provisioner "local-exec" {
-    command = <<EOT
-      chown root:libvirt ${var.storage_pool_path}
-      chmod 775 ${var.storage_pool_path}
-      echo "Pool permissions set: $(ls -ld ${var.storage_pool_path})"
-    EOT
-  }
   depends_on = [libvirt_pool.openstack_pool]
+  provisioner "local-exec" {
+    command = "chown root:${var.libvirt_qemu_group_id} ${var.storage_pool_path} && chmod 0770 ${var.storage_pool_path}"
+  }
 }
 
 # Base OS image
@@ -40,21 +37,28 @@ resource "libvirt_volume" "ubuntu_qcow2" {
   pool   = libvirt_pool.openstack_pool.name
   source = var.image_source
   format = "qcow2"
-  depends_on = [null_resource.fix_pool_permissions]
 }
 
-# Fix volume permissions with increased sleep
 resource "null_resource" "fix_volume_permissions" {
+  depends_on = [libvirt_volume.ubuntu_qcow2]
   provisioner "local-exec" {
     command = <<EOT
-      echo "Before: $(ls -l ${var.storage_pool_path}/ubuntu-22.04.qcow2)"
-      sudo chown libvirt-qemu:libvirt ${var.storage_pool_path}/ubuntu-22.04.qcow2
-      sudo chmod 664 ${var.storage_pool_path}/ubuntu-22.04.qcow2
-      sleep 5  # Increased to 5 seconds to ensure changes propagate
-      echo "After: $(ls -l ${var.storage_pool_path}/ubuntu-22.04.qcow2)"
+      for i in {1..5}; do
+        if [ -f /var/lib/libvirt/images/ubuntu-22.04.qcow2 ]; then
+          chmod 0640 /var/lib/libvirt/images/ubuntu-22.04.qcow2
+          chgrp 64055 /var/lib/libvirt/images/ubuntu-22.04.qcow2
+          if [ "$(stat -c %g /var/lib/libvirt/images/ubuntu-22.04.qcow2)" -eq 64055 ]; then
+            echo "Permissions and group set successfully"
+            exit 0
+          fi
+        fi
+        echo "Retry $i: File not ready or group not set, waiting..."
+        sleep 2
+      done
+      echo "Failed to set permissions after retries" >&2
+      exit 1
     EOT
   }
-  depends_on = [libvirt_volume.ubuntu_qcow2]
 }
 
 # Network
@@ -93,7 +97,6 @@ resource "libvirt_cloudinit_disk" "controller_init" {
     hostname = "controller-${count.index}"
     hosts    = join("\n", [for h in local.hosts_entries : "${h.ip} ${h.hostname}"])
   })
-  depends_on = [null_resource.fix_pool_permissions]
 }
 
 resource "libvirt_cloudinit_disk" "compute_init" {
@@ -105,7 +108,6 @@ resource "libvirt_cloudinit_disk" "compute_init" {
     hostname = "compute-${count.index}"
     hosts    = join("\n", [for h in local.hosts_entries : "${h.ip} ${h.hostname}"])
   })
-  depends_on = [null_resource.fix_pool_permissions]
 }
 
 resource "libvirt_cloudinit_disk" "storage_init" {
@@ -117,7 +119,6 @@ resource "libvirt_cloudinit_disk" "storage_init" {
     hostname = "storage-${count.index}"
     hosts    = join("\n", [for h in local.hosts_entries : "${h.ip} ${h.hostname}"])
   })
-  depends_on = [null_resource.fix_pool_permissions]
 }
 
 # Controller nodes
@@ -223,7 +224,6 @@ resource "libvirt_volume" "controller_extra_disk" {
   pool           = libvirt_pool.openstack_pool.name
   size           = var.controller_disk_size
   format         = "qcow2"
-  depends_on     = [null_resource.fix_pool_permissions]
 }
 
 # Additional disks for compute nodes
@@ -233,7 +233,6 @@ resource "libvirt_volume" "compute_extra_disk" {
   pool           = libvirt_pool.openstack_pool.name
   size           = var.compute_disk_size
   format         = "qcow2"
-  depends_on     = [null_resource.fix_pool_permissions]
 }
 
 # Additional disks for storage nodes
@@ -243,7 +242,6 @@ resource "libvirt_volume" "storage_extra_disk" {
   pool           = libvirt_pool.openstack_pool.name
   size           = var.storage_disk_size
   format         = "qcow2"
-  depends_on     = [null_resource.fix_pool_permissions]
 }
 
 # Local variables
