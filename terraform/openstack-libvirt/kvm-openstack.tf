@@ -92,7 +92,6 @@ resource "libvirt_cloudinit_disk" "controller_init" {
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
     hostname = "controller-${count.index}"
-    hosts    = join("\n", [for h in local.hosts_entries : "${h.ip} ${h.hostname}"])
   })
 }
 
@@ -103,7 +102,6 @@ resource "libvirt_cloudinit_disk" "compute_init" {
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
     hostname = "compute-${count.index}"
-    hosts    = join("\n", [for h in local.hosts_entries : "${h.ip} ${h.hostname}"])
   })
 }
 
@@ -114,7 +112,6 @@ resource "libvirt_cloudinit_disk" "storage_init" {
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
     hostname = "storage-${count.index}"
-    hosts    = join("\n", [for h in local.hosts_entries : "${h.ip} ${h.hostname}"])
   })
 }
 
@@ -241,9 +238,4 @@ resource "libvirt_volume" "storage_extra_disk" {
 # Local variables
 locals {
   cloud_init_path = fileexists("${path.module}/cloud_init.cfg") ? "${path.module}/cloud_init.cfg" : "${path.module}/cloud_init.cfg.example"
-  hosts_entries = concat(
-    [for i in range(var.controller_count) : { ip = cidrhost(var.network_cidr, 10 + i), hostname = "controller-${i}" }],
-    [for i in range(var.compute_count) : { ip = cidrhost(var.network_cidr, 20 + i), hostname = "compute-${i}" }],
-    [for i in range(var.storage_count) : { ip = cidrhost(var.network_cidr, 30 + i), hostname = "storage-${i}" }]
-  )
 }
