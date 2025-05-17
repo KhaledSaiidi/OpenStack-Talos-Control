@@ -32,6 +32,32 @@ resource "libvirt_volume" "ubuntu_qcow2" {
   format = "qcow2"
 }
 
+resource "libvirt_volume" "controller_disk" {
+  count          = var.controller_count
+  name           = "controller-${count.index}-disk.qcow2"
+  pool           = libvirt_pool.openstack_pool.name
+  base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  format         = "qcow2"
+}
+
+# Individual disks for compute nodes
+resource "libvirt_volume" "compute_disk" {
+  count          = var.compute_count
+  name           = "compute-${count.index}-disk.qcow2"
+  pool           = libvirt_pool.openstack_pool.name
+  base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  format         = "qcow2"
+}
+
+# Individual disks for storage nodes
+resource "libvirt_volume" "storage_disk" {
+  count          = var.storage_count
+  name           = "storage-${count.index}-disk.qcow2"
+  pool           = libvirt_pool.openstack_pool.name
+  base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  format         = "qcow2"
+}
+
 # Network
 resource "libvirt_network" "openstack_net" {
   name      = var.network_name
@@ -100,7 +126,7 @@ resource "libvirt_domain" "controller" {
   memory = var.controller_memory
 
   disk {
-    volume_id = libvirt_volume.ubuntu_qcow2.id
+    volume_id = libvirt_volume.controller_disk[count.index].id
   }
 
   dynamic "disk" {
@@ -131,7 +157,7 @@ resource "libvirt_domain" "compute" {
   memory = var.compute_memory
 
   disk {
-    volume_id = libvirt_volume.ubuntu_qcow2.id
+    volume_id = libvirt_volume.compute_disk[count.index].id
   }
 
   dynamic "disk" {
@@ -162,7 +188,7 @@ resource "libvirt_domain" "storage" {
   memory = var.storage_memory
 
   disk {
-    volume_id = libvirt_volume.ubuntu_qcow2.id
+    volume_id = libvirt_volume.storage_disk[count.index].id
   }
 
   dynamic "disk" {
