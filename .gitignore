@@ -36,3 +36,4 @@ override.tf.json
 .terraformrc
 terraform.rc
 .terraform.lock.hcl
+openstack_private_key.pem

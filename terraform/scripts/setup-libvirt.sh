@@ -21,6 +21,7 @@ if [ ! -f "${QEMU_CONF}.bak" ]; then
   echo "Backed up $QEMU_CONF to ${QEMU_CONF}.bak"
 fi
 
+# Configure user, group, and dynamic ownership
 sed -i '/^#user =/c\user = "libvirt-qemu"' "$QEMU_CONF"
 sed -i '/^#group =/c\group = "libvirt-qemu"' "$QEMU_CONF"
 sed -i '/^#dynamic_ownership =/c\dynamic_ownership = 1' "$QEMU_CONF"
@@ -29,7 +30,18 @@ grep -q '^user = "libvirt-qemu"' "$QEMU_CONF" || echo 'user = "libvirt-qemu"' >>
 grep -q '^group = "libvirt-qemu"' "$QEMU_CONF" || echo 'group = "libvirt-qemu"' >> "$QEMU_CONF"
 grep -q '^dynamic_ownership = 1' "$QEMU_CONF" || echo 'dynamic_ownership = 1' >> "$QEMU_CONF"
 
-echo "qemu.conf updated with user=libvirt-qemu, group=libvirt-qemu, dynamic_ownership=1"
+# Ensure security_driver is set to "none" (uncomment if exists or add if not)
+if grep -q '^#security_driver =' "$QEMU_CONF"; then
+  sed -i 's/^#security_driver =.*/security_driver = "none"/' "$QEMU_CONF"
+elif ! grep -q '^security_driver = "none"' "$QEMU_CONF"; then
+  echo 'security_driver = "none"' >> "$QEMU_CONF"
+fi
+
+echo "qemu.conf updated with:"
+echo "  - user = libvirt-qemu"
+echo "  - group = libvirt-qemu"
+echo "  - dynamic_ownership = 1"
+echo "  - security_driver = none"
 
 echo "Restarting libvirtd..."
 systemctl restart libvirtd

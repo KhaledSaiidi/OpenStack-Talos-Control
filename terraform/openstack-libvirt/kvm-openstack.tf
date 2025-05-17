@@ -137,9 +137,9 @@ resource "libvirt_domain" "controller" {
   }
 
   network_interface {
-    network_id = libvirt_network.openstack_net.id
-    mac        = format("52:54:00:00:00:%02x", 10 + count.index)
-    addresses  = [cidrhost(var.network_cidr, 10 + count.index)]
+    network_id     = libvirt_network.openstack_net.id
+    mac            = format("52:54:00:00:00:%02x", 10 + count.index)
+    wait_for_lease = true
   }
 
   cloudinit = libvirt_cloudinit_disk.controller_init[count.index].id
@@ -168,9 +168,9 @@ resource "libvirt_domain" "compute" {
   }
 
   network_interface {
-    network_id = libvirt_network.openstack_net.id
-    mac        = format("52:54:00:00:00:%02x", 20 + count.index)
-    addresses  = [cidrhost(var.network_cidr, 20 + count.index)]
+    network_id     = libvirt_network.openstack_net.id
+    mac            = format("52:54:00:00:00:%02x", 20 + count.index)
+    wait_for_lease = true
   }
 
   cloudinit = libvirt_cloudinit_disk.compute_init[count.index].id
@@ -199,9 +199,9 @@ resource "libvirt_domain" "storage" {
   }
 
   network_interface {
-    network_id = libvirt_network.openstack_net.id
-    mac        = format("52:54:00:00:00:%02x", 30 + count.index)
-    addresses  = [cidrhost(var.network_cidr, 30 + count.index)]
+    network_id     = libvirt_network.openstack_net.id
+    mac            = format("52:54:00:00:00:%02x", 30 + count.index)
+    wait_for_lease = true
   }
 
   cloudinit = libvirt_cloudinit_disk.storage_init[count.index].id
