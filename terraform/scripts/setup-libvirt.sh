@@ -1,58 +1,99 @@
 #!/bin/bash
 
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root or with sudo."
+  echo -e "${RED}Please run as root or with sudo.${NC}"
   exit 1
 fi
 
-echo "Installing libvirt, QEMU, genisoimage, libvirt-clients, and bridge-utils..."
+echo -e "${YELLOW}Updating package lists...${NC}"
 apt update
-apt install -y libvirt-daemon-system qemu-kvm genisoimage libvirt-clients bridge-utils
 
-echo "Starting and enabling libvirtd..."
-systemctl enable libvirtd
-systemctl start libvirtd
+echo -e "${YELLOW}Checking and installing required packages if needed...${NC}"
+packages=("libvirt-daemon-system" "qemu-system-x86" "genisoimage" "libvirt-clients" "bridge-utils")
+to_install=()
+for pkg in "${packages[@]}"; do
+  if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+    to_install+=("$pkg")
+  fi
+done
+if [ ${#to_install[@]} -gt 0 ]; then
+  echo -e "${GREEN}Installing missing packages: ${to_install[*]}${NC}"
+  apt install -y "${to_install[@]}"
+else
+  echo -e "${GREEN}All required packages are already installed.${NC}"
+fi
 
-echo "Configuring /etc/libvirt/qemu.conf..."
+echo -e "${YELLOW}Checking libvirtd service status...${NC}"
+enabled_status=$(systemctl is-enabled libvirtd 2>&1)
+active_status=$(systemctl is-active libvirtd 2>&1)
+echo -e "${YELLOW}Enabled status: $enabled_status${NC}"
+echo -e "${YELLOW}Active status: $active_status${NC}"
+
+if [ "$enabled_status" != "enabled" ] || [ "$active_status" != "active" ]; then
+  echo -e "${GREEN}Enabling and starting libvirtd...${NC}"
+  systemctl enable libvirtd
+  systemctl start libvirtd
+else
+  echo -e "${GREEN}libvirtd is already enabled and running.${NC}"
+fi
+
+echo -e "${YELLOW}Configuring /etc/libvirt/qemu.conf...${NC}"
 QEMU_CONF="/etc/libvirt/qemu.conf"
+changes_made=false
 
 if [ ! -f "${QEMU_CONF}.bak" ]; then
   cp "$QEMU_CONF" "${QEMU_CONF}.bak"
-  echo "Backed up $QEMU_CONF to ${QEMU_CONF}.bak"
+  echo -e "${GREEN}Backed up $QEMU_CONF to ${QEMU_CONF}.bak${NC}"
 fi
 
-# Configure user, group, and dynamic ownership
-sed -i '/^#user =/c\user = "libvirt-qemu"' "$QEMU_CONF"
-sed -i '/^#group =/c\group = "libvirt-qemu"' "$QEMU_CONF"
-sed -i '/^#dynamic_ownership =/c\dynamic_ownership = 1' "$QEMU_CONF"
+ensure_config() {
+  local key="$1"
+  local value="$2"
+  if grep -q "^$key = " "$QEMU_CONF"; then
+    if ! grep -q "^$key = $value" "$QEMU_CONF"; then
+      sed -i "s/^$key = .*/$key = $value/" "$QEMU_CONF"
+      changes_made=true
+    fi
+  else
+    echo "$key = $value" >> "$QEMU_CONF"
+    changes_made=true
+  fi
+}
 
-grep -q '^user = "libvirt-qemu"' "$QEMU_CONF" || echo 'user = "libvirt-qemu"' >> "$QEMU_CONF"
-grep -q '^group = "libvirt-qemu"' "$QEMU_CONF" || echo 'group = "libvirt-qemu"' >> "$QEMU_CONF"
-grep -q '^dynamic_ownership = 1' "$QEMU_CONF" || echo 'dynamic_ownership = 1' >> "$QEMU_CONF"
+ensure_config "user" "\"libvirt-qemu\""
+ensure_config "group" "\"libvirt-qemu\""
+ensure_config "dynamic_ownership" "1"
 
-# Ensure security_driver is set to "none" (uncomment if exists or add if not)
+# Handle security_driver
 if grep -q '^#security_driver =' "$QEMU_CONF"; then
   sed -i 's/^#security_driver =.*/security_driver = "none"/' "$QEMU_CONF"
+  changes_made=true
 elif ! grep -q '^security_driver = "none"' "$QEMU_CONF"; then
   echo 'security_driver = "none"' >> "$QEMU_CONF"
+  changes_made=true
 fi
 
-echo "qemu.conf updated with:"
-echo "  - user = libvirt-qemu"
-echo "  - group = libvirt-qemu"
-echo "  - dynamic_ownership = 1"
-echo "  - security_driver = none"
-
-echo "Restarting libvirtd..."
-systemctl restart libvirtd
-
-echo "Verifying libvirt-qemu user and group..."
-if id libvirt-qemu >/dev/null 2>&1; then
-  echo "libvirt-qemu user and group exist:"
-  id libvirt-qemu
+if $changes_made; then
+  echo -e "${GREEN}qemu.conf updated with necessary changes.${NC}"
+  echo -e "${GREEN}Restarting libvirtd...${NC}"
+  systemctl restart libvirtd
 else
-  echo "Error: libvirt-qemu user or group does not exist."
+  echo -e "${GREEN}qemu.conf security_driver is already set to none${NC}"
+fi
+
+echo -e "${YELLOW}Verifying libvirt-qemu user and group...${NC}"
+if id libvirt-qemu >/dev/null 2>&1; then
+  echo -e "${GREEN}libvirt-qemu user and group exist:${NC}"
+  user_info=$(id libvirt-qemu)
+  echo -e "${GREEN}$user_info${NC}"
+else
+  echo -e "${RED}Error: libvirt-qemu user or group does not exist.${NC}"
   exit 1
 fi
 
-echo "Setup complete. Run 'terraform apply' with your configuration."
+echo -e "${GREEN}Setup complete. Run 'terraform apply' with your configuration.${NC}"
