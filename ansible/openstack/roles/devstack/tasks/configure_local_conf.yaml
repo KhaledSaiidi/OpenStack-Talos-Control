@@ -1,0 +1,23 @@
+- name: Create local.conf for controller
+  template:
+    src: local.conf.controller.j2
+    dest: /opt/stack/devstack/local.conf
+  when: inventory_hostname in groups['controllers']
+  become: yes
+  become_user: stack
+
+- name: Create local.conf for compute
+  template:
+    src: local.conf.compute.j2
+    dest: /opt/stack/devstack/local.conf
+  when: inventory_hostname in groups['computes']
+  become: yes
+  become_user: stack
+
+- name: Create local.conf for storage
+  template:
+    src: local.conf.storage.j2
+    dest: /opt/stack/devstack/local.conf
+  when: inventory_hostname in groups['storage']
+  become: yes
+  become_user: stack

@@ -1,0 +1,7 @@
+- name: Clone DevStack repository
+  git:
+    repo: https://opendev.org/openstack/devstack
+    dest: /opt/stack/devstack
+    version: stable/2023.1
+  become: yes
+  become_user: stack
