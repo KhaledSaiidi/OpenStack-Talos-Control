@@ -2,7 +2,7 @@ terraform {
   required_providers {
     libvirt = {
       source  = "dmacvicar/libvirt"
-      version = "~> 0.8.0"  # Use the latest compatible version
+      version = "~> 0.8.0"
     }
     tls = {
       source  = "hashicorp/tls"
@@ -235,7 +235,23 @@ resource "libvirt_volume" "storage_extra_disk" {
   format         = "qcow2"
 }
 
-# Local variables
-locals {
-  cloud_init_path = fileexists("${path.module}/cloud_init.cfg") ? "${path.module}/cloud_init.cfg" : "${path.module}/cloud_init.cfg.example"
+resource "random_password" "openstack_secret" {
+  length  = 16
+  special = false
+}
+
+resource "null_resource" "ansible_provision" {
+  depends_on = [
+    libvirt_domain.controller,
+    libvirt_domain.compute,
+    libvirt_domain.storage
+  ]
+
+  provisioner "local-exec" {
+    command = <<EOF
+      ansible-playbook -i /dev/stdin ../../ansible/site.yml <<INVENTORY || exit 1
+      ${local.ansible_inventory}
+      INVENTORY
+    EOF
+  }
 }
