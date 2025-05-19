@@ -1,0 +1,11 @@
+[[local|localrc]]
+HOST_IP={{ ansible_host }}
+SERVICE_HOST={{ groups['controllers'][0] }}
+ADMIN_PASSWORD={{ openstack_secret }}
+DATABASE_PASSWORD=$ADMIN_PASSWORD
+RABBIT_PASSWORD=$ADMIN_PASSWORD
+SERVICE_PASSWORD=$ADMIN_PASSWORD
+
+# Enable compute services only
+ENABLED_SERVICES=n-cpu,n-cond,n-sch,n-novnc
+NEUTRON_AGENT=ovs

@@ -1,0 +1,13 @@
+[[local|localrc]]
+HOST_IP={{ ansible_host }}
+ADMIN_PASSWORD={{ openstack_secret }}
+DATABASE_PASSWORD=$ADMIN_PASSWORD
+RABBIT_PASSWORD=$ADMIN_PASSWORD
+SERVICE_PASSWORD=$ADMIN_PASSWORD
+
+# Enable controller services
+ENABLED_SERVICES=key,glance,nova,neutron,cinder,horizon
+
+# Point to compute and storage nodes
+COMPUTE_HOSTS={{ groups['computes'] | map('extract', hostvars, 'ansible_host') | join(',') }}
+CINDER_HOSTS={{ groups['storage'] | map('extract', hostvars, 'ansible_host') | join(',') }}

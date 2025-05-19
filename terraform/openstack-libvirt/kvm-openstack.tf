@@ -253,7 +253,7 @@ resource "null_resource" "ansible_provision" {
     command = <<EOF
       ansible-playbook \
         -i /dev/stdin \
-        ../../ansible/openstack/site.yml \
+        ../../ansible/openstack/site.yaml \
         --extra-vars "openstack_secret=${random_password.openstack_secret.result} private_key_path=${local_file.private_key.filename}" \
         <<INVENTORY || exit 1
       ${local.ansible_inventory}

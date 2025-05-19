@@ -1,0 +1,36 @@
+- hosts: all
+  gather_facts: no
+  tasks:
+    - name: Wait for SSH to be available
+      wait_for:
+        port: 22
+        host: "{{ inventory_hostname }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 300
+      delegate_to: localhost
+
+- hosts: all
+  roles:
+    - devstack
+
+- hosts: controllers
+  tasks:
+    - name: Run stack.sh on controllers
+      command: /opt/stack/devstack/stack.sh
+      become: yes
+      become_user: stack
+
+- hosts: computes
+  tasks:
+    - name: Run stack.sh on computes
+      command: /opt/stack/devstack/stack.sh
+      become: yes
+      become_user: stack
+
+- hosts: storage
+  tasks:
+    - name: Run stack.sh on storage
+      command: /opt/stack/devstack/stack.sh
+      become: yes
+      become_user: stack
