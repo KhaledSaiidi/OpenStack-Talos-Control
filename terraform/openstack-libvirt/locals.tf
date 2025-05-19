@@ -5,6 +5,7 @@ locals {
 
 # Inventory
 locals {
+  private_key_path = local_file.private_key.filename
   ansible_inventory = yamlencode({
     all = {
       children = {
@@ -14,7 +15,7 @@ locals {
             controller.name => {
               ansible_host = controller.network_interface[0].addresses[0]
               ansible_user = "ubuntu"
-              ansible_ssh_private_key_file = "${path.module}/openstack_private_key.pem"
+              ansible_ssh_private_key_file = local.private_key_path
             }
           }
         }
@@ -24,7 +25,7 @@ locals {
             compute.name => {
               ansible_host = compute.network_interface[0].addresses[0]
               ansible_user = "ubuntu"
-              ansible_ssh_private_key_file = "${path.module}/openstack_private_key.pem"
+              ansible_ssh_private_key_file = local.private_key_path
             }
           }
         }
@@ -34,13 +35,15 @@ locals {
             storage.name => {
               ansible_host = storage.network_interface[0].addresses[0]
               ansible_user = "ubuntu"
-              ansible_ssh_private_key_file = "${path.module}/openstack_private_key.pem"
+              ansible_ssh_private_key_file = local.private_key_path
             }
           }
         }
       }
       vars = {
         openstack_secret = random_password.openstack_secret.result
+        private_key_path = local.private_key_path
+        ansible_ssh_common_args = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
       }
     }
   })

@@ -1,3 +1,4 @@
-- import_tasks: setup_stack_user.yaml
-- import_tasks: install_devstack.yaml
-- import_tasks: configure_local_conf.yaml
+---
+- ansible.builtin.import_tasks: setup_stack_user.yaml
+- ansible.builtin.import_tasks: install_devstack.yaml
+- ansible.builtin.import_tasks: configure_local_conf.yaml

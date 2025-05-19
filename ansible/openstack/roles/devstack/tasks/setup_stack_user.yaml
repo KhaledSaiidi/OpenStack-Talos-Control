@@ -1,18 +1,23 @@
+---
 - name: Create stack user
-  user:
+  ansible.builtin.user:
     name: stack
     shell: /bin/bash
     home: /opt/stack
     create_home: true
+    state: present
 
 - name: Allow stack user to have passwordless sudo
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/sudoers.d/stack
-    line: 'stack ALL=(ALL) NOPASSWD: ALL'
+    line: "stack ALL=(ALL) NOPASSWD: ALL"
     create: yes
-    mode: 0440
+    mode: "0440"
+    state: present
+    validate: "visudo -cf %s"
 
 - name: Ensure home directory is executable
-  file:
+  ansible.builtin.file:
     path: /opt/stack
-    mode: '0755'
+    mode: "0755"
+    state: directory

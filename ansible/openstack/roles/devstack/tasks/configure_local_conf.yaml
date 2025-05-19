@@ -1,23 +1,33 @@
+---
 - name: Create local.conf for controller
-  template:
+  ansible.builtin.template:
     src: local.conf.controller.j2
     dest: /opt/stack/devstack/local.conf
+    mode: "0644"
+    owner: stack
+    group: stack
   when: inventory_hostname in groups['controllers']
   become: yes
   become_user: stack
 
 - name: Create local.conf for compute
-  template:
+  ansible.builtin.template:
     src: local.conf.compute.j2
     dest: /opt/stack/devstack/local.conf
+    mode: "0644"
+    owner: stack
+    group: stack
   when: inventory_hostname in groups['computes']
   become: yes
   become_user: stack
 
 - name: Create local.conf for storage
-  template:
+  ansible.builtin.template:
     src: local.conf.storage.j2
     dest: /opt/stack/devstack/local.conf
+    mode: "0644"
+    owner: stack
+    group: stack
   when: inventory_hostname in groups['storage']
   become: yes
   become_user: stack

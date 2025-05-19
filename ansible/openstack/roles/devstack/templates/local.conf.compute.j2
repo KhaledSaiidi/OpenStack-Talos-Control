@@ -1,11 +1,17 @@
 [[local|localrc]]
 HOST_IP={{ ansible_host }}
-SERVICE_HOST={{ groups['controllers'][0] }}
+SERVICE_HOST={{ groups['controllers'] | map('extract', hostvars, 'ansible_host') | first | default(ansible_host) }}
 ADMIN_PASSWORD={{ openstack_secret }}
 DATABASE_PASSWORD=$ADMIN_PASSWORD
 RABBIT_PASSWORD=$ADMIN_PASSWORD
 SERVICE_PASSWORD=$ADMIN_PASSWORD
+SERVICE_TOKEN={{ openstack_secret }}
 
-# Enable compute services only
+# Enable compute services
 ENABLED_SERVICES=n-cpu,n-cond,n-sch,n-novnc
 NEUTRON_AGENT=ovs
+
+# Logging and verbosity
+LOGFILE=/opt/stack/logs/stack.sh.log
+VERBOSE=True
+LOGDAYS=2

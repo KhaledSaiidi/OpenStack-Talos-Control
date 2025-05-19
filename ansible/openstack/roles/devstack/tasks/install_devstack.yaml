@@ -1,7 +1,9 @@
+---
 - name: Clone DevStack repository
-  git:
+  ansible.builtin.git:
     repo: https://opendev.org/openstack/devstack
     dest: /opt/stack/devstack
     version: stable/2025.1
+    update: no
   become: yes
   become_user: stack

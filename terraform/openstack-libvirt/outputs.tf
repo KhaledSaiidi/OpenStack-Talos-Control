@@ -44,12 +44,6 @@ output "ssh_public_key" {
   value       = tls_private_key.openstack_key.public_key_openssh
 }
 
-output "private_key_path" {
-  description = "Path to the SSH private key file"
-  value       = local_file.private_key.filename
-  sensitive   = true
-}
-
 output "ansible_inventory" {
   description = "Ansible inventory for OpenStack deployment"
   value = {

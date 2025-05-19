@@ -240,24 +240,28 @@ resource "random_password" "openstack_secret" {
   special = false
 }
 
-resource "null_resource" "ansible_provision" {
+resource "local_file" "ansible_inventory" {
+  content         = local.ansible_inventory
+  filename        = "${path.module}/ansible_inventory.yaml"
+  file_permission = "0644"
+}
+
+resource  "null_resource" "ansible_provision" {
   depends_on = [
     libvirt_domain.controller,
     libvirt_domain.compute,
     libvirt_domain.storage,
     random_password.openstack_secret,
-    local_file.private_key
+    local_file.private_key,
+    local_file.ansible_inventory
   ]
 
   provisioner "local-exec" {
     command = <<EOF
       ansible-playbook \
-        -i /dev/stdin \
+        -i ${local_file.ansible_inventory.filename} \
         ../../ansible/openstack/site.yaml \
-        --extra-vars "openstack_secret=${random_password.openstack_secret.result} private_key_path=${local_file.private_key.filename}" \
-        <<INVENTORY || exit 1
-      ${local.ansible_inventory}
-      INVENTORY
+        || exit 1
     EOF
   }
 }

@@ -1,36 +1,60 @@
-- hosts: all
+---
+- name: Wait for SSH to be available
+  hosts: all
   gather_facts: no
   tasks:
     - name: Wait for SSH to be available
-      wait_for:
+      ansible.builtin.wait_for:
         port: 22
-        host: "{{ inventory_hostname }}"
+        host: "{{ ansible_host }}"
         search_regex: OpenSSH
         delay: 10
         timeout: 300
       delegate_to: localhost
 
-- hosts: all
+- name: Configure DevStack on all hosts
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Debug SSH settings
+      ansible.builtin.debug:
+        msg: "SSH settings: user={{ ansible_user }}, key={{ ansible_ssh_private_key_file }}, args={{ ansible_ssh_common_args }}"
+    - name: Test SSH connectivity
+      ansible.builtin.command:
+        cmd: "true"
+      changed_when: false
   roles:
     - devstack
 
-- hosts: controllers
+- name: Run stack.sh on controllers
+  hosts: controllers
   tasks:
     - name: Run stack.sh on controllers
-      command: /opt/stack/devstack/stack.sh
+      ansible.builtin.command:
+        cmd: /opt/stack/devstack/stack.sh
+        chdir: /opt/stack/devstack
       become: yes
       become_user: stack
+      changed_when: false
 
-- hosts: computes
+- name: Run stack.sh on computes
+  hosts: computes
   tasks:
     - name: Run stack.sh on computes
-      command: /opt/stack/devstack/stack.sh
+      ansible.builtin.command:
+        cmd: /opt/stack/devstack/stack.sh
+        chdir: /opt/stack/devstack
       become: yes
       become_user: stack
+      changed_when: false
 
-- hosts: storage
+- name: Run stack.sh on storage
+  hosts: storage
   tasks:
     - name: Run stack.sh on storage
-      command: /opt/stack/devstack/stack.sh
+      ansible.builtin.command:
+        cmd: /opt/stack/devstack/stack.sh
+        chdir: /opt/stack/devstack
       become: yes
       become_user: stack
+      changed_when: false
