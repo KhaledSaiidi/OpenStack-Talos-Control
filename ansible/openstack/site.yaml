@@ -1,5 +1,5 @@
 ---
-- name: Wait for SSH to be available
+- name: Wait for SSH and cloud-init
   hosts: all
   gather_facts: no
   tasks:
@@ -12,13 +12,42 @@
         timeout: 300
       delegate_to: localhost
 
+    - name: Wait for Cloud-Init to complete
+      hosts: all
+      gather_facts: no
+      tasks:
+        - name: Wait for cloud-init to finish with countdown logging
+          ansible.builtin.shell:
+            cmd: |
+              count=30
+              while [ $count -gt 0 ]; do
+                if [ -f /run/cloud-init/result.json ]; then
+                  echo "Cloud-Init completed, result file found" | tee -a /tmp/cloud-init-wait.log
+                  exit 0
+                else
+                  echo "Retry wait for cloud-init $count" | tee -a /tmp/cloud-init-wait.log
+                  sleep 20
+                  count=$((count - 1))
+                fi
+              done
+              echo "Timeout waiting for Cloud-Init after 10 minutes" | tee -a /tmp/cloud-init-wait.log
+              exit 1
+          register: wait_result
+          changed_when: false
+          failed_when: wait_result.rc != 0
+          become: no
+
 - name: Configure DevStack on all hosts
   hosts: all
   gather_facts: yes
+  become: yes
   tasks:
     - name: Debug SSH settings
       ansible.builtin.debug:
         msg: "SSH settings: user={{ ansible_user }}, key={{ ansible_ssh_private_key_file }}, args={{ ansible_ssh_common_args }}"
+    - name: Debug environment
+      ansible.builtin.debug:
+        msg: "Environment: tmpdir={{ ansible_tmpdir | default('/tmp') }}, become_user={{ ansible_become_user | default('root') }}"
     - name: Test SSH connectivity
       ansible.builtin.command:
         cmd: "true"
@@ -26,35 +55,41 @@
   roles:
     - devstack
 
-- name: Run stack.sh on controllers
-  hosts: controllers
-  tasks:
-    - name: Run stack.sh on controllers
-      ansible.builtin.command:
-        cmd: /opt/stack/devstack/stack.sh
-        chdir: /opt/stack/devstack
-      become: yes
-      become_user: stack
-      changed_when: false
+# - name: Run stack.sh on controllers
+#   hosts: controllers
+#   become: yes
+#   tasks:
+#     - name: Verify DevStack directory ownership
+#       ansible.builtin.debug:
+#         msg: "DevStack dir: {{ (lookup('file', '/opt/stack/devstack') | stat).stat | default({}) }}"
+#     - name: Run stack.sh as stack user
+#       ansible.builtin.command:
+#         cmd: sudo -u stack /opt/stack/devstack/stack.sh
+#         chdir: /opt/stack/devstack
+#       changed_when: false
 
-- name: Run stack.sh on computes
-  hosts: computes
-  tasks:
-    - name: Run stack.sh on computes
-      ansible.builtin.command:
-        cmd: /opt/stack/devstack/stack.sh
-        chdir: /opt/stack/devstack
-      become: yes
-      become_user: stack
-      changed_when: false
+# - name: Run stack.sh on computes
+#   hosts: computes
+#   become: yes
+#   tasks:
+#     - name: Verify DevStack directory ownership
+#       ansible.builtin.debug:
+#         msg: "DevStack dir: {{ (lookup('file', '/opt/stack/devstack') | stat).stat | default({}) }}"
+#     - name: Run stack.sh as stack user
+#       ansible.builtin.command:
+#         cmd: sudo -u stack /opt/stack/devstack/stack.sh
+#         chdir: /opt/stack/devstack
+#       changed_when: false
 
-- name: Run stack.sh on storage
-  hosts: storage
-  tasks:
-    - name: Run stack.sh on storage
-      ansible.builtin.command:
-        cmd: /opt/stack/devstack/stack.sh
-        chdir: /opt/stack/devstack
-      become: yes
-      become_user: stack
-      changed_when: false
+# - name: Run stack.sh on storage
+#   hosts: storage
+#   become: yes
+#   tasks:
+#     - name: Verify DevStack directory ownership
+#       ansible.builtin.debug:
+#         msg: "DevStack dir: {{ (lookup('file', '/opt/stack/devstack') | stat).stat | default({}) }}"
+#     - name: Run stack.sh as stack user
+#       ansible.builtin.command:
+#         cmd: sudo -u stack /opt/stack/devstack/stack.sh
+#         chdir: /opt/stack/devstack
+#       changed_when: false

@@ -1,4 +1,11 @@
 ---
+- name: Ensure git is installed
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: yes
+  become: yes
+  
 - name: Clone DevStack repository
   ansible.builtin.git:
     repo: https://opendev.org/openstack/devstack
@@ -6,4 +13,12 @@
     version: stable/2025.1
     update: no
   become: yes
-  become_user: stack
+
+- name: Set ownership of DevStack repository to stack
+  ansible.builtin.file:
+    path: /opt/stack/devstack
+    owner: stack
+    group: stack
+    recurse: yes
+    state: directory
+  become: yes

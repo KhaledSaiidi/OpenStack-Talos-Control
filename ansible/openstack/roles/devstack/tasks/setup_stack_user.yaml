@@ -1,4 +1,25 @@
 ---
+- name: Check for apt locks
+  ansible.builtin.command:
+    cmd: "lsof /var/lib/dpkg/lock-frontend || true"
+  become: yes
+  changed_when: false
+  register: apt_lock_check
+
+- name: Kill stuck apt processes
+  ansible.builtin.command:
+    cmd: "killall -9 apt-get apt || true"
+  become: yes
+  changed_when: false
+  when: apt_lock_check.stdout_lines | length > 0
+
+- name: Clear apt locks
+  ansible.builtin.command:
+    cmd: "rm -f /var/lib/dpkg/lock-frontend /var/cache/apt/archives/lock || true"
+  become: yes
+  changed_when: false
+  when: apt_lock_check.stdout_lines | length > 0
+
 - name: Create stack user
   ansible.builtin.user:
     name: stack
@@ -6,6 +27,7 @@
     home: /opt/stack
     create_home: true
     state: present
+  become: yes
 
 - name: Allow stack user to have passwordless sudo
   ansible.builtin.lineinfile:
@@ -15,9 +37,11 @@
     mode: "0440"
     state: present
     validate: "visudo -cf %s"
+  become: yes
 
 - name: Ensure home directory is executable
   ansible.builtin.file:
     path: /opt/stack
     mode: "0755"
     state: directory
+  become: yes

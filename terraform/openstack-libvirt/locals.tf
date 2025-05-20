@@ -1,6 +1,6 @@
 # Cloud_init
 locals {
-  cloud_init_path = fileexists("${path.module}/cloud_init.cfg") ? "${path.module}/cloud_init.cfg" : "${path.module}/cloud_init.cfg.example"
+  cloud_init_path = "${path.module}/cloud_init.cfg"
 }
 
 # Inventory
