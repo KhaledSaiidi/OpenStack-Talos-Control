@@ -258,7 +258,7 @@ resource  "null_resource" "ansible_provision" {
 
   provisioner "local-exec" {
     command = <<EOF
-      ansible-playbook \
+      ANSIBLE_FORCE_COLOR=1 ansible-playbook -v \
         -i ${local_file.ansible_inventory.filename} \
         ../../ansible/openstack/site.yaml \
         || exit 1

@@ -11,31 +11,26 @@
         delay: 10
         timeout: 300
       delegate_to: localhost
-
-    - name: Wait for Cloud-Init to complete
-      hosts: all
-      gather_facts: no
-      tasks:
-        - name: Wait for cloud-init to finish with countdown logging
-          ansible.builtin.shell:
-            cmd: |
-              count=30
-              while [ $count -gt 0 ]; do
-                if [ -f /run/cloud-init/result.json ]; then
-                  echo "Cloud-Init completed, result file found" | tee -a /tmp/cloud-init-wait.log
-                  exit 0
-                else
-                  echo "Retry wait for cloud-init $count" | tee -a /tmp/cloud-init-wait.log
-                  sleep 20
-                  count=$((count - 1))
-                fi
-              done
-              echo "Timeout waiting for Cloud-Init after 10 minutes" | tee -a /tmp/cloud-init-wait.log
-              exit 1
-          register: wait_result
-          changed_when: false
-          failed_when: wait_result.rc != 0
-          become: no
+      
+    - name: Wait for cloud-init to finish with countdown logging
+      ansible.builtin.shell:
+        cmd: |
+          count=30
+          while [ $count -gt 0 ]; do
+            if [ -f /run/cloud-init/result.json ]; then
+              echo "Cloud-Init completed, result file found"
+              exit 0
+            else
+              echo "Retry wait for cloud-init $count"
+              sleep 20
+              count=$((count - 1))
+            fi
+          done
+          echo "Timeout waiting for Cloud-Init after 10 minutes" >&2
+          exit 1
+      register: wait_result
+      changed_when: false
+      failed_when: wait_result.rc != 0
 
 - name: Configure DevStack on all hosts
   hosts: all
