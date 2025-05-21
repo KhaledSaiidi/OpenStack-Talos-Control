@@ -20,6 +20,11 @@
       retries: 30
       delay: 20
       changed_when: false
+      failed_when: not cloudinit_status.stat.exists
+    
+    - name: Log final cloud-init wait result
+      ansible.builtin.debug:
+        msg: "Cloud-init file found: {{ cloudinit_status.stat.exists }}"
 
 - name: Configure DevStack on all hosts
   hosts: all
