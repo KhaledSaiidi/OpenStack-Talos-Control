@@ -60,6 +60,16 @@ variable "controller_memory" {
   }
 }
 
+variable "controller_disk_size" {
+  description = "Size of controller disks in bytes"
+  type        = number
+  default     = 21474836480  # 20GB
+  validation {
+    condition     = var.controller_disk_size >= 21474836480
+    error_message = "Controller disk size must be at least 20GB."
+  }
+}
+
 variable "controller_extra_disks" {
   description = "Extra disks per controller node for OpenStack services"
   type        = number
@@ -70,12 +80,12 @@ variable "controller_extra_disks" {
   }
 }
 
-variable "controller_disk_size" {
+variable "controller_extra_disk_size" {
   description = "Size of controller extra disks in bytes"
   type        = number
-  default     = 21474836480  # 20GB
+  default     = 10737418240  # 10GB
   validation {
-    condition     = var.controller_disk_size >= 10737418240
+    condition     = var.controller_extra_disk_size >= 10737418240
     error_message = "Controller disk size must be at least 10GB."
   }
 }
@@ -100,6 +110,17 @@ variable "compute_memory" {
   }
 }
 
+variable "compute_disk_size" {
+  description = "Size of compute disks in bytes"
+  type        = number
+  default     = 21474836480  # 20GB
+  validation {
+    condition     = var.compute_disk_size >= 21474836480
+    error_message = "Compute disk size must be at least 20GB."
+  }
+}
+
+
 variable "compute_extra_disks" {
   description = "Extra disks per compute node for Nova instances"
   type        = number
@@ -110,12 +131,12 @@ variable "compute_extra_disks" {
   }
 }
 
-variable "compute_disk_size" {
+variable "compute_extra_disk_size" {
   description = "Size of compute extra disks in bytes"
   type        = number
-  default     = 21474836480  # 20GB
+  default     = 10737418240  # 10GB
   validation {
-    condition     = var.compute_disk_size >= 10737418240
+    condition     = var.compute_extra_disk_size >= 10737418240
     error_message = "Compute disk size must be at least 10GB."
   }
 }
@@ -140,6 +161,16 @@ variable "storage_memory" {
   }
 }
 
+variable "storage_disk_size" {
+  description = "Size of storage disks in bytes"
+  type        = number
+  default     = 21474836480  # 20GB
+  validation {
+    condition     = var.storage_disk_size >= 21474836480
+    error_message = "Storage disk size must be at least 20GB."
+  }
+}
+
 variable "storage_extra_disks" {
   description = "Extra disks per storage node for Cinder/Swift"
   type        = number
@@ -150,13 +181,13 @@ variable "storage_extra_disks" {
   }
 }
 
-variable "storage_disk_size" {
+variable "storage_extra_disk_size" {
   description = "Size of storage extra disks in bytes"
   type        = number
   default     = 21474836480  # 20GB
   validation {
-    condition     = var.storage_disk_size >= 10737418240
-    error_message = "Storage disk size must be at least 10GB."
+    condition     = var.storage_extra_disk_size >= 21474836480
+    error_message = "Storage disk size must be at least 20GB."
   }
 }
 

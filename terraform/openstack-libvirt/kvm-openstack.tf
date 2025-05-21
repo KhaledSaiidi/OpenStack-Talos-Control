@@ -37,6 +37,7 @@ resource "libvirt_volume" "controller_disk" {
   name           = "controller-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.controller_disk_size
   format         = "qcow2"
 }
 
@@ -46,6 +47,7 @@ resource "libvirt_volume" "compute_disk" {
   name           = "compute-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.compute_disk_size
   format         = "qcow2"
 }
 
@@ -55,6 +57,7 @@ resource "libvirt_volume" "storage_disk" {
   name           = "storage-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.storage_disk_size
   format         = "qcow2"
 }
 
@@ -213,7 +216,7 @@ resource "libvirt_volume" "controller_extra_disk" {
   count          = var.controller_count * var.controller_extra_disks
   name           = "controller-${floor(count.index / var.controller_extra_disks)}-disk-${count.index % var.controller_extra_disks + 1}"
   pool           = libvirt_pool.openstack_pool.name
-  size           = var.controller_disk_size
+  size           = var.controller_extra_disk_size
   format         = "qcow2"
 }
 
@@ -222,7 +225,7 @@ resource "libvirt_volume" "compute_extra_disk" {
   count          = var.compute_count * var.compute_extra_disks
   name           = "compute-${floor(count.index / var.compute_extra_disks)}-disk-${count.index % var.compute_extra_disks + 1}"
   pool           = libvirt_pool.openstack_pool.name
-  size           = var.compute_disk_size
+  size           = var.compute_extra_disk_size
   format         = "qcow2"
 }
 
@@ -231,7 +234,7 @@ resource "libvirt_volume" "storage_extra_disk" {
   count          = var.storage_count * var.storage_extra_disks
   name           = "storage-${floor(count.index / var.storage_extra_disks)}-disk-${count.index % var.storage_extra_disks + 1}"
   pool           = libvirt_pool.openstack_pool.name
-  size           = var.storage_disk_size
+  size           = var.storage_extra_disk_size
   format         = "qcow2"
 }
 
