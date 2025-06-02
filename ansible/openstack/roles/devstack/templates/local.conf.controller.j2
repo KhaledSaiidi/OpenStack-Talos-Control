@@ -6,7 +6,7 @@ RABBIT_PASSWORD=$ADMIN_PASSWORD
 SERVICE_PASSWORD=$ADMIN_PASSWORD
 
 # Enable controller services
-ENABLED_SERVICES=key,glance,nova,neutron,cinder,horizon
+ENABLED_SERVICES=key,glance,nova,neutron,cinder,horizon,mysql
 
 # Point to compute and storage nodes
 COMPUTE_HOSTS={{ groups['computes'] | map('extract', hostvars, 'ansible_host') | join(',') }}
