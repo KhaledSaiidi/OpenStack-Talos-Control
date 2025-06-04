@@ -6,7 +6,13 @@ RABBIT_PASSWORD=$ADMIN_PASSWORD
 SERVICE_PASSWORD=$ADMIN_PASSWORD
 
 # Enable controller services
-ENABLED_SERVICES=key,glance,nova,neutron,cinder,horizon,mysql
+ENABLED_SERVICES=key,mysql,rabbit,placement,glance-api,glance-registry,nova-api,neutron,cinder,horizon
+
+# Neutron configuration
+ENABLED_SERVICES+=,q-svc,q-agt,q-dhcp,q-l3,q-meta
+Q_PLUGIN=ml2
+Q_AGENT=openvswitch
+NEUTRON_CREATE_INITIAL_NETWORKS=True
 
 # Point to compute and storage nodes
 COMPUTE_HOSTS={{ groups['computes'] | map('extract', hostvars, 'ansible_host') | join(',') }}
