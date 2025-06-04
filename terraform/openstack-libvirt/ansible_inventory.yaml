@@ -20,5 +20,5 @@
           "ansible_user": "ubuntu"
   "vars":
     "ansible_ssh_common_args": "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-    "openstack_secret": "ZuWKfSDFtdqaA4kc"
+    "openstack_secret": "SoMm4jjO4ULBmerN"
     "private_key_path": "./openstack_private_key.pem"
