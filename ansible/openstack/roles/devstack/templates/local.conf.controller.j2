@@ -5,16 +5,22 @@ DATABASE_PASSWORD=$ADMIN_PASSWORD
 RABBIT_PASSWORD=$ADMIN_PASSWORD
 SERVICE_PASSWORD=$ADMIN_PASSWORD
 
+# Logs config
+LOGFILE=/opt/stack/logs/stack.sh.log
+SCREEN_LOGDIR=/opt/stack/logs/screen
+ENABLE_DEBUG_LOG_LEVEL=True
+VERBOSE=True
+
 # Enable controller services
-ENABLED_SERVICES=key,mysql,rabbit,placement,glance-api,nova-api,neutron,cinder,horizon
+ENABLED_SERVICES=key,mysql,rabbit,placement-api,glance-api,nova-api,neutron,cinder,horizon
 
 # Cinder workers
 ENABLED_SERVICES+=,c-api,c-vol,c-sch
 
-# Neutron configuration
-ENABLED_SERVICES+=,q-svc,q-agt,q-dhcp,q-l3,q-meta
-Q_PLUGIN=ml2
-Q_AGENT=openvswitch
+# Neutron OVN configuration
+ML2_GENEVE_MAX_HEADER_SIZE=38
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=ovn,logger
+ENABLED_SERVICES+=,ovn-northd,ovn-controller,ovn-meta
 NEUTRON_CREATE_INITIAL_NETWORKS=True
 
 # Point to compute and storage nodes
