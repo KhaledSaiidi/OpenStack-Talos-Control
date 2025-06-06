@@ -222,7 +222,7 @@ variable "network_bridge" {
 variable "network_cidr" {
   description = "Network CIDR for OpenStack nodes"
   type        = string
-  default     = "192.168.122.0/24"
+  default     = "10.10.40.0/24"
   validation {
     condition     = can(cidrhost(var.network_cidr, 0))
     error_message = "Network CIDR must be a valid CIDR notation."

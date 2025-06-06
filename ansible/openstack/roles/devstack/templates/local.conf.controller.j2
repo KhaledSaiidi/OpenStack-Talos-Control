@@ -6,7 +6,10 @@ RABBIT_PASSWORD=$ADMIN_PASSWORD
 SERVICE_PASSWORD=$ADMIN_PASSWORD
 
 # Enable controller services
-ENABLED_SERVICES=key,mysql,rabbit,placement,glance-api,glance-registry,nova-api,neutron,cinder,horizon
+ENABLED_SERVICES=key,mysql,rabbit,placement,glance-api,nova-api,neutron,cinder,horizon
+
+# Cinder workers
+ENABLED_SERVICES+=,c-api,c-vol,c-sch
 
 # Neutron configuration
 ENABLED_SERVICES+=,q-svc,q-agt,q-dhcp,q-l3,q-meta

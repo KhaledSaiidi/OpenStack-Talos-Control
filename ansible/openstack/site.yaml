@@ -50,65 +50,65 @@
   roles:
     - devstack
 
-- name: Run stack.sh on controllers
-  hosts: controllers
-  become: yes
-  tasks:
-    - name: Get DevStack directory stats for controllers
-      ansible.builtin.stat:
-        path: /opt/stack/devstack
-      register: devstack_stat
+# - name: Run stack.sh on controllers
+#   hosts: controllers
+#   become: yes
+#   tasks:
+#     - name: Get DevStack directory stats for controllers
+#       ansible.builtin.stat:
+#         path: /opt/stack/devstack
+#       register: devstack_stat
 
-    - name: Verify DevStack directory ownership for controllers
-      ansible.builtin.debug:
-        msg: "DevStack dir: {{ devstack_stat.stat }}"
+#     - name: Verify DevStack directory ownership for controllers
+#       ansible.builtin.debug:
+#         msg: "DevStack dir: {{ devstack_stat.stat }}"
 
-    - name: Run stack.sh for controllers
-      ansible.builtin.shell:
-        cmd: sudo -u stack unbuffer /opt/stack/devstack/stack.sh
-        chdir: /opt/stack/devstack
-      args:
-        executable: /bin/bash
-      changed_when: false
+#     - name: Run stack.sh for controllers
+#       ansible.builtin.shell:
+#         cmd: sudo -u stack /opt/stack/devstack/stack.sh
+#         chdir: /opt/stack/devstack
+#       args:
+#         executable: /bin/bash
+#       changed_when: false
 
-- name: Run stack.sh on computes
-  hosts: computes
-  become: yes
-  tasks:
-    - name: Get DevStack directory stats for computes
-      ansible.builtin.stat:
-        path: /opt/stack/devstack
-      register: devstack_stat
+# - name: Run stack.sh on computes
+#   hosts: computes
+#   become: yes
+#   tasks:
+#     - name: Get DevStack directory stats for computes
+#       ansible.builtin.stat:
+#         path: /opt/stack/devstack
+#       register: devstack_stat
 
-    - name: Verify DevStack directory ownership for computes
-      ansible.builtin.debug:
-        msg: "DevStack dir: {{ devstack_stat.stat }}"
+#     - name: Verify DevStack directory ownership for computes
+#       ansible.builtin.debug:
+#         msg: "DevStack dir: {{ devstack_stat.stat }}"
 
-    - name: Run stack.sh for computes
-      ansible.builtin.shell:
-        cmd: sudo -u stack unbuffer /opt/stack/devstack/stack.sh
-        chdir: /opt/stack/devstack
-      args:
-        executable: /bin/bash
-      changed_when: false
+#     - name: Run stack.sh for computes
+#       ansible.builtin.shell:
+#         cmd: sudo -u stack /opt/stack/devstack/stack.sh
+#         chdir: /opt/stack/devstack
+#       args:
+#         executable: /bin/bash
+#       changed_when: false
 
-- name: Run stack.sh on storage 
-  hosts: storage
-  become: yes
-  tasks:
-    - name: Get DevStack directory stats for storage
-      ansible.builtin.stat:
-        path: /opt/stack/devstack
-      register: devstack_stat
+# - name: Run stack.sh on storage 
+#   hosts: storage
+#   become: yes
+#   tasks:
+#     - name: Get DevStack directory stats for storage
+#       ansible.builtin.stat:
+#         path: /opt/stack/devstack
+#       register: devstack_stat
 
-    - name: Verify DevStack directory ownership for storage
-      ansible.builtin.debug:
-        msg: "DevStack dir: {{ devstack_stat.stat }}"
+#     - name: Verify DevStack directory ownership for storage
+#       ansible.builtin.debug:
+#         msg: "DevStack dir: {{ devstack_stat.stat }}"
 
-    - name: Run stack.sh for storage
-      ansible.builtin.shell:
-        cmd: sudo -u stack unbuffer /opt/stack/devstack/stack.sh
-        chdir: /opt/stack/devstack
-      args:
-        executable: /bin/bash
-      changed_when: false
+#     - name: Run stack.sh for storage
+#       ansible.builtin.shell:
+#         cmd: sudo -u stack /opt/stack/devstack/stack.sh
+#         chdir: /opt/stack/devstack
+#       args:
+#         executable: /bin/bash
+#       changed_when: false

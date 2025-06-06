@@ -7,7 +7,7 @@
     owner: stack
     group: stack
   when: inventory_hostname in groups['controllers']
-  become: yes
+  become: true
 
 - name: Create local.conf for compute
   ansible.builtin.template:
@@ -17,7 +17,7 @@
     owner: stack
     group: stack
   when: inventory_hostname in groups['computes']
-  become: yes
+  become: true
 
 - name: Create local.conf for storage
   ansible.builtin.template:
@@ -27,4 +27,4 @@
     owner: stack
     group: stack
   when: inventory_hostname in groups['storage']
-  become: yes
+  become: true

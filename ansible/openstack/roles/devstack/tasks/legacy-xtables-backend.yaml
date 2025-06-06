@@ -1,0 +1,54 @@
+---
+- name: Install legacy *tables packages
+  apt:
+    name: "{{ legacy_pkgs }}"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
+  become: true
+  tags: [legacy_xtables]
+
+# Stat all candidate binaries
+- name: Check which *-legacy binaries exist
+  stat:
+    path: "/usr/sbin/{{ item }}-legacy"
+  loop: "{{ legacy_tools }}"
+  register: legacy_stat
+  become: true
+  tags: [legacy_xtables]
+
+# Switch found *legacy backends
+- name: Switch *tables utilities to legacy backend
+  alternatives:
+    name: "{{ item.item }}"
+    link: "/usr/sbin/{{ item.item }}"
+    path: "/usr/sbin/{{ item.item }}-legacy"
+    state: selected
+  loop: "{{ legacy_stat.results }}"
+  when: item.stat.exists
+  loop_control:
+    label: "{{ item.item }}"
+  become: true
+  tags: [legacy_xtables]
+
+# CI / visibility
+- name: Show resulting iptables alternative
+  command: update-alternatives --display iptables
+  register: iptables_alt
+  changed_when: false
+  become: true
+  tags: [legacy_xtables]
+
+- name: Show resulting ebtables alternative
+  command: update-alternatives --display ebtables
+  register: ebtables_alt
+  changed_when: false
+  become: true
+  tags: [legacy_xtables]
+
+- name: Print legacy-xtables summary
+  debug:
+    msg: |
+      {{ iptables_alt.stdout_lines | join('\n') }}
+      {{ ebtables_alt.stdout_lines | join('\n') }}
+  tags: [legacy_xtables]

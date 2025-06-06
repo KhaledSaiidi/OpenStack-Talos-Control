@@ -1,0 +1,14 @@
+legacy_pkgs:
+  - iptables
+  - ebtables
+  - arptables
+
+legacy_tools:
+  - iptables
+  - ip6tables
+  - ebtables
+  - arptables
+
+devstack_version: "stable/2025.1"
+stack_user: "stack"
+stack_home: "/opt/stack/devstack"

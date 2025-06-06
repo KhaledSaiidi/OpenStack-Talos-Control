@@ -4,7 +4,7 @@
     name: git
     state: present
     update_cache: yes
-  become: yes
+  become: true
   
 - name: Clone DevStack repository
   ansible.builtin.git:
@@ -12,7 +12,7 @@
     dest: /opt/stack/devstack
     version: stable/2025.1
     update: no
-  become: yes
+  become: true
 
 - name: Set ownership of DevStack repository to stack
   ansible.builtin.file:
@@ -21,4 +21,4 @@
     group: stack
     recurse: yes
     state: directory
-  become: yes
+  become: true

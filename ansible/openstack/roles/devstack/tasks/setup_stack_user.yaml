@@ -6,7 +6,7 @@
     home: /opt/stack
     create_home: true
     state: present
-  become: yes
+  become: true
 
 - name: Allow stack user to have passwordless sudo
   ansible.builtin.lineinfile:
@@ -16,11 +16,11 @@
     mode: "0440"
     state: present
     validate: "visudo -cf %s"
-  become: yes
+  become: true
 
 - name: Ensure home directory is executable
   ansible.builtin.file:
     path: /opt/stack
     mode: "0755"
     state: directory
-  become: yes
+  become: true
