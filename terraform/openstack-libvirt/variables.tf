@@ -24,20 +24,12 @@ variable "compute_count" {
   description = "Number of compute nodes"
   type        = number
   default     = 1
-  validation {
-    condition     = var.compute_count >= 1
-    error_message = "Compute count must be at least 1."
-  }
 }
 
 variable "storage_count" {
   description = "Number of storage nodes"
   type        = number
   default     = 1
-  validation {
-    condition     = var.storage_count >= 1
-    error_message = "Storage count must be at least 1."
-  }
 }
 
 variable "controller_vcpus" {

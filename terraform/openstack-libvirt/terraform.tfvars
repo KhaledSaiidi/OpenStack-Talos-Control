@@ -4,8 +4,8 @@ compute_count    = 1
 storage_count    = 1
 
 # Controller node resources
-controller_vcpus       = 2
-controller_memory      = 1536
+controller_vcpus       = 4
+controller_memory      = 2048 #1536
 controller_extra_disks = 1
 controller_disk_size = 21474836480
 controller_extra_disk_size = 10737418240

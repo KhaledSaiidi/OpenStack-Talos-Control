@@ -1,0 +1,72 @@
+---
+- name: Wait for SSH and cloud-init
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Wait for SSH to be available
+      ansible.builtin.wait_for:
+        port: 22
+        host: "{{ ansible_host }}"
+        search_regex: OpenSSH
+        delay: 10
+        timeout: 300
+      delegate_to: localhost
+      
+    - name: Wait for cloud-init to finish
+      ansible.builtin.stat:
+          path: /run/cloud-init/result.json
+      register: cloudinit_status
+      until: cloudinit_status.stat.exists
+      retries: 30
+      delay: 20
+      changed_when: false
+      failed_when: not cloudinit_status.stat.exists
+    
+    - name: Log final cloud-init wait result
+      ansible.builtin.debug:
+        msg: "Cloud-init file found: {{ cloudinit_status.stat.exists }}"
+
+- name: Configure OpenStack on all hosts
+  hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Update system package index and upgrade packages
+      ansible.builtin.apt:
+            update_cache: yes
+            upgrade: safe
+            cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+    - name: Debug SSH settings
+      ansible.builtin.debug:
+        msg: "SSH settings: user={{ ansible_user }}, key={{ ansible_ssh_private_key_file }}, args={{ ansible_ssh_common_args }}"
+    - name: Debug environment
+      ansible.builtin.debug:
+        msg: "Environment: tmpdir={{ ansible_tmpdir | default('/tmp') }}, become_user={{ ansible_become_user | default('root') }}"
+    - name: Test SSH connectivity
+      ansible.builtin.command:
+        cmd: "true"
+      changed_when: false
+  roles:
+    - openstack
+
+- name: Run stack.sh on controllers
+  hosts: controllers
+  become: yes
+  tasks:
+    - name: Get Openstack directory stats for controllers
+      ansible.builtin.stat:
+        path: /opt/stack/devstack
+      register: devstack_stat
+
+    - name: Verify Openstack directory ownership for controllers
+      ansible.builtin.debug:
+        msg: "Openstack dir: {{ devstack_stat.stat }}"
+
+    - name: Run stack.sh for controllers
+      ansible.builtin.shell:
+        cmd: sudo -u stack /opt/stack/devstack/stack.sh
+        chdir: /opt/stack/devstack
+      args:
+        executable: /bin/bash
+      changed_when: false
