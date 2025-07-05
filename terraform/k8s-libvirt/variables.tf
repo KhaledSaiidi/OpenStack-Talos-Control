@@ -1,3 +1,22 @@
+variable "cluster_name" {
+  description = "Management cluster name"
+  type        = string
+  default     = "management-cluster"
+}
+
+variable "talos_gen_version" {
+  description = "trigger-hash key so Terraform knows when to rerun the generator"
+  type        = string
+  default     = "v1.10.5"
+}
+
+variable "k8s_version"     { 
+  description = "Kubernetes cluster version"
+  type        = string
+  default = "1.32.0"   
+}
+
+
 variable "storage_pool" {
   description = "Libvirt storage pool name"
   type        = string

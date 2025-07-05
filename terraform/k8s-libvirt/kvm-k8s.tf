@@ -4,10 +4,6 @@ terraform {
       source  = "dmacvicar/libvirt"
       version = "~> 0.8.0"
     }
-    tls = {
-      source  = "hashicorp/tls"
-      version = "~> 4.0"
-    }
   }
 }
 
@@ -157,6 +153,25 @@ resource "libvirt_domain" "worker" {
     mode = "host-passthrough"
   }
 }
+resource "null_resource" "talos_gen" {
+  triggers = {
+    cluster = var.cluster_name
+    talos_version  = var.talos_gen_version
+    k8s_version    = var.k8s_version
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOF
+      set -euo pipefail
+      OUT_DIR=${path.module}/../../ansible/roles/k8s-talos/talos-outputs
+      mkdir -p "$OUT_DIR"
+      talosctl gen config "${self.triggers.cluster}" https://0.0.0.0:6443 \
+        --with-kubelet=true \
+        --kubernetes-version ${self.triggers.k8s_version} \
+        --output-dir "$OUT_DIR"
+    EOF
+  }
+}
 
 resource "local_file" "ansible_inventory" {
   content         = local.ansible_inventory
@@ -166,6 +181,7 @@ resource "local_file" "ansible_inventory" {
 
 resource  "null_resource" "ansible_provision" {
   depends_on = [
+    null_resource.talos_gen,
     libvirt_domain.master,
     libvirt_domain.worker,
     local_file.ansible_inventory
@@ -175,7 +191,7 @@ resource  "null_resource" "ansible_provision" {
     command = <<EOF
       PYTHONUNBUFFERED=1 ansible-playbook \
         -i ${local_file.ansible_inventory.filename} \
-        ../../ansible/roles/k8s/talos.yaml \
+        ../../ansible/roles/k8s-talos/talos.yaml \
         || exit 1
     EOF
   }

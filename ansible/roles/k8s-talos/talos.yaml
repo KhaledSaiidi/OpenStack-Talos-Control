@@ -1,0 +1,120 @@
+---
+- name: Bootstrap Talos cluster
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    masters: >-
+      {{ groups['masters'] | map('extract', hostvars, 'ansible_host') | list }}
+    workers: >-
+      {{ groups['workers'] | map('extract', hostvars, 'ansible_host') | list }}
+    all_nodes: "{{ masters + workers }}"
+    talos_version: "{{ hostvars['localhost']['talos_version'] }}"
+    api_port: 50000
+    talosctl_path: "/usr/local/bin/talosctl"
+    talos_dir: "{{ playbook_dir }}/talos-outputs"
+
+  tasks:
+
+  - name: Check current talosctl version (if any)
+    command: "{{ talosctl_path }} version --short"
+    register: talosctl_ver
+    changed_when: false
+    failed_when: false
+
+  - name: Download talosctl {{ talos_version }} if not present / wrong version
+    when: talosctl_ver.rc != 0 or talos_version not in talosctl_ver.stdout
+    block:
+      - name: Fetch talosctl archive
+        get_url:
+          url: "https://github.com/siderolabs/talos/releases/download/{{ talos_version }}/talosctl-{{ talos_version }}-linux-amd64.tar.gz"
+          dest: "/tmp/talosctl.tgz"
+          mode: "0644"
+
+      - name: Unpack talosctl
+        unarchive:
+          src: "/tmp/talosctl.tgz"
+          dest: "/tmp"
+          remote_src: yes
+          creates: "/tmp/talosctl"
+
+      - name: Install talosctl
+        copy:
+          src: "/tmp/talosctl"
+          dest: "{{ talosctl_path }}"
+          mode: "0755"
+
+  - name: Wait for Talos API on every node
+    wait_for:
+      host: "{{ item }}"
+      port: "{{ api_port }}"
+      timeout: 300
+    loop: "{{ all_nodes }}"
+
+  # Patch controlplane.yaml with real API endpoint (first master IP)
+  - name: Build patched controlplane.yaml
+    copy:
+      src: "{{ talos_dir }}/controlplane.yaml"
+      dest: "/tmp/controlplane_patched.yaml"
+      force: yes
+    delegate_to: localhost
+
+  - name: Replace placeholder endpoint in controlplane.yaml
+    replace:
+      path: "/tmp/controlplane_patched.yaml"
+      regexp: 'https://0\.0\.0\.0:6443'
+      replace: "https://{{ masters[0] }}:6443"
+    delegate_to: localhost
+
+  # Patch join.yaml (worker) the same way
+  - name: Build patched join.yaml
+    copy:
+      src: "{{ talos_dir }}/join.yaml"
+      dest: "/tmp/join_patched.yaml"
+      force: yes
+    delegate_to: localhost
+
+  - name: Replace placeholder endpoint in join.yaml
+    replace:
+      path: "/tmp/join_patched.yaml"
+      regexp: 'https://0\.0\.0\.0:6443'
+      replace: "https://{{ masters[0] }}:6443"
+    delegate_to: localhost
+
+  # Apply Talos configs
+  - name: Apply control-plane config to masters
+    command: >
+      {{ talosctl_path }} apply-config --insecure --nodes {{ masters | join(',') }} --file /tmp/controlplane_patched.yaml
+    when: masters | length > 0
+
+  - name: Apply worker config to workers
+    command: >
+      {{ talosctl_path }} apply-config --insecure --nodes {{ workers | join(',') }} --file /tmp/join_patched.yaml
+    when: workers | length > 0
+
+  # Bootstrap the cluster (idempotent)
+  - name: Bootstrap cluster
+    command: >
+      {{ talosctl_path }} bootstrap --nodes {{ masters[0] }}
+    register: bootstrap
+    retries: 5
+    delay: 15
+    until: bootstrap.rc == 0
+
+  # Wait for Kubernetes API and download kubeconfig
+  - name: Wait for Kubernetes API to answer
+    wait_for:
+      host: "{{ masters[0] }}"
+      port: 6443
+      timeout: 300
+    delegate_to: localhost
+
+  - name: Download kubeconfig
+    command: >
+      {{ talosctl_path }} kubeconfig {{ talos_dir }}/kubeconfig.yaml --nodes {{ masters[0] }} --force
+    delegate_to: localhost
+    changed_when: false
+
+  - name: Show kubeconfig path
+    debug:
+      msg: "Kubeconfig saved to {{ talos_dir }}/kubeconfig.yaml"

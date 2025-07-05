@@ -15,6 +15,10 @@ locals {
           }
         }
       }
+      vars = {
+        talos_version = var.talos_gen_version
+        k8s_version   = var.k8s_version
+      }
     }
   })
 }
