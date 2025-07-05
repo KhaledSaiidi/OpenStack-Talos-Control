@@ -263,7 +263,7 @@ resource  "null_resource" "ansible_provision" {
     command = <<EOF
       PYTHONUNBUFFERED=1 ansible-playbook \
         -i ${local_file.ansible_inventory.filename} \
-        ../../ansible/site.yaml \
+        ../../ansible/roles/openstack/site.yaml \
         || exit 1
     EOF
   }
