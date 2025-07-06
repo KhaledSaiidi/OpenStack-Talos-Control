@@ -171,27 +171,50 @@ resource "libvirt_domain" "worker" {
     mode = "host-passthrough"
   }
 }
+
 resource "null_resource" "talos_gen" {
+  depends_on = [libvirt_domain.master]
   triggers = {
-    cluster       = var.cluster_name
-    talos_version = var.talos_gen_version
-    k8s_version   = var.k8s_version
+    cluster_name    = var.cluster_name
+    talos_version   = var.talos_gen_version
+    k8s_version     = var.k8s_version
+    master_0_ip     = libvirt_domain.master[0].network_interface.0.addresses[0]
   }
 
   provisioner "local-exec" {
     command = <<-EOF
       bash -c '
         set -euo pipefail
+
         OUT_DIR=${path.module}/../../ansible/roles/k8s-talos/talos-outputs
         mkdir -p "$OUT_DIR"
 
-        talosctl gen config "${self.triggers.cluster}" https://0.0.0.0:6443 \
+        echo "Waiting for Talos plaintext API on master-0 (${self.triggers.master_0_ip}:50000)..."
+        timeout 300 bash -c "until nc -zv ${self.triggers.master_0_ip} 50000; do sleep 5; done"
+
+        echo "Creating control plane patch file..."
+        cat <<EOT > "$OUT_DIR/controlplane-patch.json"
+{
+  "cluster": {
+    "controlPlane": {
+      "init": true
+    }
+  }
+}
+EOT
+
+        echo "Generating Talos configs with API endpoint https://${self.triggers.master_0_ip}:6443"
+        talosctl gen config "${self.triggers.cluster_name}" https://${self.triggers.master_0_ip}:6443 \
           --kubernetes-version ${self.triggers.k8s_version} \
-          --output-dir "$OUT_DIR"
+          --output-dir "$OUT_DIR" \
+          --config-patch-control-plane @"$OUT_DIR/controlplane-patch.json"
+
+        echo "Talos configs generated at $OUT_DIR"
       '
     EOF
   }
 }
+
 
 resource "local_file" "ansible_inventory" {
   content         = local.ansible_inventory

@@ -16,6 +16,11 @@ variable "k8s_version"     {
   default = "1.32.0"   
 }
 
+variable "control_plane_vip" {
+  description = "Virtual IP for Talos control plane"
+  type        = string
+  default     = "10.10.10.100"
+}
 
 variable "storage_pool" {
   description = "Libvirt storage pool name"
