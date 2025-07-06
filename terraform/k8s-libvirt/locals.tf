@@ -1,4 +1,11 @@
 locals {
+  image_url     = "https://github.com/siderolabs/talos/releases/download/${var.talos_gen_version}/metal-amd64.raw.zst"
+  raw_dir       = "${path.module}/talos-image"
+  raw_file      = "${local.raw_dir}/metal-amd64.raw"
+  qcow_file     = "${local.raw_dir}/talos-base.qcow2"
+}
+
+locals {
   ansible_inventory = yamlencode({
     all = {
       children = {

@@ -52,11 +52,6 @@ variable "master_memory" {
   default     = 8192
 }
 
-variable "master_disk_size" {
-  description = "Size of master disks in bytes"
-  type        = number
-  default     = 21474836480  # 20GB
-}
 
 variable "master_extra_disks" {
   description = "Extra disks per master node"
@@ -82,13 +77,6 @@ variable "worker_memory" {
   default     = 8192
 }
 
-variable "worker_disk_size" {
-  description = "Size of worker disks in bytes"
-  type        = number
-  default     = 21474836480  # 20GB
-}
-
-
 variable "worker_extra_disks" {
   description = "Extra disks per worker node for Nova instances"
   type        = number
@@ -99,13 +87,6 @@ variable "worker_extra_disk_size" {
   description = "Size of worker extra disks in bytes"
   type        = number
   default     = 10737418240  # 10GB
-}
-
-
-variable "image_source" {
-  description = "URL or path to base OS image"
-  type        = string
-  default     = "https://github.com/siderolabs/talos/releases/download/v1.10.5/metal-amd64.iso"
 }
 
 variable "network_name" {

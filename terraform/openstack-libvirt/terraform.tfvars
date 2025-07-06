@@ -7,21 +7,18 @@ storage_count    = 1
 controller_vcpus       = 4
 controller_memory      = 2048 #1536
 controller_extra_disks = 1
-controller_disk_size = 21474836480
-controller_extra_disk_size = 10737418240
+controller_extra_disk_size = 21474836480
 
 # Compute node resources
 compute_vcpus          = 2
 compute_memory         = 1024
 compute_extra_disks    = 1
-compute_disk_size = 21474836480
-compute_extra_disk_size = 10737418240
+compute_extra_disk_size = 21474836480
 
 # Storage node resources
 storage_vcpus          = 2
 storage_memory         = 1024
 storage_extra_disks    = 1
-storage_disk_size = 21474836480
 storage_extra_disk_size = 21474836480
 # Network configuration
 network_mode           = "nat"

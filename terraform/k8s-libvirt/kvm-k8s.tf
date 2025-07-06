@@ -20,35 +20,69 @@ resource "libvirt_pool" "k8s_pool" {
   }
 }
 
-# Base OS image
-resource "libvirt_volume" "talos_iso" {
-  name   = "talos-v1.10.5-metal.iso"
+# Download and prepare the image only when version changes
+resource "null_resource" "talos_image" {
+  triggers = { talos_version = var.talos_gen_version }
+
+  provisioner "local-exec" {
+    command = <<-EOF
+      bash -c '
+        set -euo pipefail
+        mkdir -p "${local.raw_dir}"
+
+        # Download if not present
+        if [ ! -f "${local.raw_dir}/raw.zst" ]; then
+          echo "Downloading Talos raw.zst ..."
+          curl -L -o "${local.raw_dir}/raw.zst" "${local.image_url}"
+        fi
+
+        # Decompress
+        if [ ! -f "${local.raw_file}" ]; then
+          echo "Decompressing ..."
+          unzstd -f "${local.raw_dir}/raw.zst" -o "${local.raw_file}"
+        fi
+
+        # Convert to qcow2 (optional but recommended)
+        if [ ! -f "${local.qcow_file}" ]; then
+          echo "Converting to qcow2 ..."
+          qemu-img convert -f raw -O qcow2 "${local.raw_file}" "${local.qcow_file}"
+        fi
+      '
+    EOF
+  }
+}
+
+# Talos image
+resource "libvirt_volume" "talos_base" {
+  depends_on = [null_resource.talos_image]
+
+  name   = "talos-${var.talos_gen_version}-base.qcow2"
   pool   = libvirt_pool.k8s_pool.name
-  source = var.image_source
-  format = "raw"
+  source = local.qcow_file
+  format = "qcow2"
 }
 
 resource "libvirt_volume" "master_disk" {
   count          = var.master_count
-  name           = "master-${count.index}-disk.qcow2"
+  name           = "master-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.k8s_pool.name
-  size           = var.master_disk_size
+  base_volume_id = libvirt_volume.talos_base.id
   format         = "qcow2"
 }
 
 # Individual disks for worker nodes
 resource "libvirt_volume" "worker_disk" {
   count          = var.worker_count
-  name           = "worker-${count.index}-disk.qcow2"
+  name           = "worker-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.k8s_pool.name
-  size           = var.worker_disk_size
+  base_volume_id = libvirt_volume.talos_base.id
   format         = "qcow2"
 }
 
 # Additional disks for master nodes
 resource "libvirt_volume" "master_extra_disk" {
   count          = var.master_count * var.master_extra_disks
-  name           = "master-${floor(count.index / var.master_extra_disks)}-disk-${count.index % var.master_extra_disks + 1}"
+  name           = "master-${floor(count.index / var.master_extra_disks) + 1}-disk-${count.index % var.master_extra_disks + 1}"
   pool           = libvirt_pool.k8s_pool.name
   size           = var.master_extra_disk_size
   format         = "qcow2"
@@ -57,7 +91,7 @@ resource "libvirt_volume" "master_extra_disk" {
 # Additional disks for worker nodes
 resource "libvirt_volume" "worker_extra_disk" {
   count          = var.worker_count * var.worker_extra_disks
-  name           = "worker-${floor(count.index / var.worker_extra_disks)}-disk-${count.index % var.worker_extra_disks + 1}"
+  name           = "worker-${floor(count.index / var.worker_extra_disks) + 1}-disk-${count.index % var.worker_extra_disks + 1}"
   pool           = libvirt_pool.k8s_pool.name
   size           = var.worker_extra_disk_size
   format         = "qcow2"
@@ -80,21 +114,13 @@ resource "libvirt_network" "k8s_net" {
 # master nodes
 resource "libvirt_domain" "master" {
   count  = var.master_count
-  name   = "master-${count.index}"
+  name   = "master-${count.index + 1}"
   vcpu   = var.master_vcpus
   memory = var.master_memory
 
   # Writable system disk
   disk {
     volume_id = libvirt_volume.master_disk[count.index].id
-    boot_order = 2
-  }
-  # Shared read-only Talos ISO
-  disk { 
-    volume_id = libvirt_volume.talos_iso.id
-    device     = "cdrom"
-    read_only  = true
-    boot_order = 1
   }
 
   dynamic "disk" {
@@ -106,7 +132,7 @@ resource "libvirt_domain" "master" {
 
   network_interface {
     network_id     = libvirt_network.k8s_net.id
-    mac            = format("52:54:00:00:00:%02x", 10 + count.index)
+    mac            = format("52:54:00:00:00:%02x", 10 + count.index + 1)
     wait_for_lease = true
   }
 
@@ -119,21 +145,13 @@ resource "libvirt_domain" "master" {
 # worker nodes
 resource "libvirt_domain" "worker" {
   count  = var.worker_count
-  name   = "worker-${count.index}"
+  name   = "worker-${count.index + 1}"
   vcpu   = var.worker_vcpus
   memory = var.worker_memory
 
   # Writable system disk
   disk {
     volume_id = libvirt_volume.worker_disk[count.index].id
-    boot_order = 2
-  }
-  # Shared read-only Talos ISO
-  disk { 
-    volume_id = libvirt_volume.talos_iso.id
-    device     = "cdrom"
-    read_only  = true
-    boot_order = 1
   }
 
   dynamic "disk" {
@@ -145,7 +163,7 @@ resource "libvirt_domain" "worker" {
 
   network_interface {
     network_id     = libvirt_network.k8s_net.id
-    mac            = format("52:54:00:00:00:%02x", 20 + count.index)
+    mac            = format("52:54:00:00:00:%02x", 20 + count.index + 1)
     wait_for_lease = true
   }
 

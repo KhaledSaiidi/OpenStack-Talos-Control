@@ -52,16 +52,6 @@ variable "controller_memory" {
   }
 }
 
-variable "controller_disk_size" {
-  description = "Size of controller disks in bytes"
-  type        = number
-  default     = 21474836480  # 20GB
-  validation {
-    condition     = var.controller_disk_size >= 21474836480
-    error_message = "Controller disk size must be at least 20GB."
-  }
-}
-
 variable "controller_extra_disks" {
   description = "Extra disks per controller node for OpenStack services"
   type        = number
@@ -99,16 +89,6 @@ variable "compute_memory" {
   validation {
     condition     = var.compute_memory >= 1024
     error_message = "Compute memory must be at least 1024 MB for testing."
-  }
-}
-
-variable "compute_disk_size" {
-  description = "Size of compute disks in bytes"
-  type        = number
-  default     = 21474836480  # 20GB
-  validation {
-    condition     = var.compute_disk_size >= 21474836480
-    error_message = "Compute disk size must be at least 20GB."
   }
 }
 
@@ -150,16 +130,6 @@ variable "storage_memory" {
   validation {
     condition     = var.storage_memory >= 1024
     error_message = "Storage memory must be at least 1024 MB for testing."
-  }
-}
-
-variable "storage_disk_size" {
-  description = "Size of storage disks in bytes"
-  type        = number
-  default     = 21474836480  # 20GB
-  validation {
-    condition     = var.storage_disk_size >= 21474836480
-    error_message = "Storage disk size must be at least 20GB."
   }
 }
 

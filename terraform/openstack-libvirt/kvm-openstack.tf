@@ -37,7 +37,6 @@ resource "libvirt_volume" "controller_disk" {
   name           = "controller-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
-  size           = var.controller_disk_size
   format         = "qcow2"
 }
 
@@ -47,7 +46,6 @@ resource "libvirt_volume" "compute_disk" {
   name           = "compute-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
-  size           = var.compute_disk_size
   format         = "qcow2"
 }
 
@@ -57,7 +55,6 @@ resource "libvirt_volume" "storage_disk" {
   name           = "storage-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
-  size           = var.storage_disk_size
   format         = "qcow2"
 }
 

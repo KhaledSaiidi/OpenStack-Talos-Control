@@ -30,4 +30,4 @@ override.tf.json
 terraform.rc
 .terraform.lock.hcl
 openstack_private_key.pem
-.vscode/
+.vscode/terraform/k8s-libvirt/talos-image/
