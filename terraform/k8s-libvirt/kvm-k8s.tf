@@ -173,20 +173,22 @@ resource "libvirt_domain" "worker" {
 }
 resource "null_resource" "talos_gen" {
   triggers = {
-    cluster = var.cluster_name
-    talos_version  = var.talos_gen_version
-    k8s_version    = var.k8s_version
+    cluster       = var.cluster_name
+    talos_version = var.talos_gen_version
+    k8s_version   = var.k8s_version
   }
 
   provisioner "local-exec" {
     command = <<-EOF
-      set -euo pipefail
-      OUT_DIR=${path.module}/../../ansible/roles/k8s-talos/talos-outputs
-      mkdir -p "$OUT_DIR"
-      talosctl gen config "${self.triggers.cluster}" https://0.0.0.0:6443 \
-        --with-kubelet=true \
-        --kubernetes-version ${self.triggers.k8s_version} \
-        --output-dir "$OUT_DIR"
+      bash -c '
+        set -euo pipefail
+        OUT_DIR=${path.module}/../../ansible/roles/k8s-talos/talos-outputs
+        mkdir -p "$OUT_DIR"
+
+        talosctl gen config "${self.triggers.cluster}" https://0.0.0.0:6443 \
+          --kubernetes-version ${self.triggers.k8s_version} \
+          --output-dir "$OUT_DIR"
+      '
     EOF
   }
 }

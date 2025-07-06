@@ -31,3 +31,6 @@ terraform.rc
 .terraform.lock.hcl
 openstack_private_key.pem
 .vscode/terraform/k8s-libvirt/talos-image/
+ansible/roles/k8s-talos/talos-outputs/
+terraform/k8s-libvirt/talos-image/
+terraform/k8s-libvirt/ansible_inventory.yaml
