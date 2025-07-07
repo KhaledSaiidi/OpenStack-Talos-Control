@@ -192,23 +192,10 @@ resource "null_resource" "talos_gen" {
         echo "Waiting for Talos plaintext API on master-0 (${self.triggers.master_0_ip}:50000)..."
         timeout 300 bash -c "until nc -zv ${self.triggers.master_0_ip} 50000; do sleep 5; done"
 
-        echo "Creating control plane patch file..."
-        cat <<EOT > "$OUT_DIR/controlplane-patch.json"
-{
-  "cluster": {
-    "controlPlane": {
-      "init": true
-    }
-  }
-}
-EOT
-
         echo "Generating Talos configs with API endpoint https://${self.triggers.master_0_ip}:6443"
         talosctl gen config "${self.triggers.cluster_name}" https://${self.triggers.master_0_ip}:6443 \
           --kubernetes-version ${self.triggers.k8s_version} \
-          --output-dir "$OUT_DIR" \
-          --config-patch-control-plane @"$OUT_DIR/controlplane-patch.json"
-
+          --output-dir "$OUT_DIR"
         echo "Talos configs generated at $OUT_DIR"
       '
     EOF

@@ -2,147 +2,116 @@
 - name: Bootstrap / reconcile Talos cluster
   hosts: localhost
   gather_facts: false
-
+  collections:
+    - community.general
+  
   vars:
     masters: >-
       {{ groups['masters'] | map('extract', hostvars, 'ansible_host') | list }}
     workers: >-
       {{ groups['workers'] | map('extract', hostvars, 'ansible_host') | list }}
+    talosctl:      "/usr/local/bin/talosctl"
+    k8s_port:      6443
 
-    talosctl:  "/usr/local/bin/talosctl"
-    api_port:  50000
-
-    talos_dir:   "{{ playbook_dir }}/talos-outputs"
-    talosconfig: "{{ talos_dir }}/talosconfig"
+    talos_dir:     "{{ playbook_dir }}/talos-outputs"
+    talosconfig:   "{{ talos_dir }}/talosconfig"
 
   environment:
     TALOSCONFIG: "{{ talosconfig }}"
 
   tasks:
-  ##################################################################
-  # 0 ▸ point talosconfig to bootstrap master
-  ##################################################################
-  - name: Point talosconfig to bootstrap master
-    command: "{{ talosctl }} config endpoint {{ masters[0] }}"
-    changed_when: false
-    failed_when: false
 
-  ##################################################################
-  # 1 ▸ wait for bootstrap master (plaintext API)
-  ##################################################################
-  - name: Wait for bootstrap master plaintext API
-    wait_for:
-      host: "{{ masters[0] }}"
-      port: "{{ api_port }}"
-      timeout: 600
-    delegate_to: localhost
-
-  ##################################################################
-  # 2 ▸ patch machine-configs with real endpoint
-  ##################################################################
-  - name: Patch control-plane config
-    copy:
-      src: "{{ talos_dir }}/controlplane.yaml"
-      dest: "/tmp/controlplane_patched.yaml"
-      force: yes
-    delegate_to: localhost
-
-  - replace:
-      path: "/tmp/controlplane_patched.yaml"
-      regexp: 'https://0\.0\.0\.0:6443'
-      replace: "https://{{ masters[0] }}:6443"
-    delegate_to: localhost
-
-  - name: Patch worker config
-    copy:
-      src: "{{ talos_dir }}/worker.yaml"
-      dest: "/tmp/worker_patched.yaml"
-      force: yes
-    delegate_to: localhost
-
-  - replace:
-      path: "/tmp/worker_patched.yaml"
-      regexp: 'https://0\.0\.0\.0:6443'
-      replace: "https://{{ masters[0] }}:6443"
-    delegate_to: localhost
-
-  ##################################################################
-  # 3 ▸ push control-plane config (plaintext → TLS retry)
-  ##################################################################
-  - name: Apply control-plane config (plaintext first)
+  - name: Patch talosconfig with init master endpoint
     command: >
-      {{ talosctl }} apply-config --insecure
-      --nodes {{ masters | join(',') }}
-      --file  /tmp/controlplane_patched.yaml
-    register: cp_plain
-    failed_when: false
+      {{ talosctl }} config endpoint {{ masters[0] }}
+      --talosconfig {{ talosconfig }}
+    register: patch_config
+    changed_when: "'set current context endpoint' in patch_config.stdout"
 
-  - name: Re-apply control-plane config over TLS if needed
-    when: cp_plain.rc != 0
-    command: >
-      {{ talosctl }} apply-config
-      --nodes {{ masters | join(',') }}
-      --file  /tmp/controlplane_patched.yaml
+  # - name: Apply control-plane config to init master
+  #   command: >
+  #     {{ talosctl }} apply-config
+  #     --insecure
+  #     -n {{ masters[0] }}
+  #     --file {{ talos_dir }}/controlplane.yaml
+  #   register: cp_apply
+  #   retries: 5
+  #   delay: 10
+  #   until: cp_apply.rc == 0
 
-  ##################################################################
-  # 4 ▸ keep retrying worker apply until their plaintext API is up
-  ##################################################################
-  - name: Try apply worker config (retries until up)
-    command: >
-      {{ talosctl }} apply-config --insecure
-      --nodes {{ workers | join(',') }}
-      --file  /tmp/worker_patched.yaml
-    register: wk_apply
-    retries: 20
-    delay:   15
-    until:   wk_apply.rc == 0
-    when: workers | length > 0
+  # - name: Bootstrap etcd cluster
+  #   command: >
+  #     {{ talosctl }} bootstrap
+  #     -n {{ masters[0] }}
+  #     --talosconfig {{ talos_dir }}/talosconfig
+  #   register: bootstrap
+  #   retries: 3
+  #   delay: 5
+  #   until: bootstrap.rc == 0
 
-  ##################################################################
-  # 5 ▸ *new* : wait for Talos health on every node (TLS, etcd, kubelet)
-  ##################################################################
-  - name: Wait for Talos health on every node
-    command: >
-      {{ talosctl }} health --wait
-      --nodes {{ item }}
-    register: talos_health
-    retries: 40          # 40 × 15 s ≈ 10 min / node
-    delay:   15
-    until:   talos_health.rc == 0
-    loop: "{{ masters + workers }}"
-    loop_control:
-      label: "{{ item }}"
-    delegate_to: localhost
+  # - name: Wait for Talos health on master nodes
+  #   command: >
+  #     {{ talosctl }} health
+  #     -n {{ item }}
+  #     --endpoints {{ masters[0] }}
+  #   register: talos_health
+  #   retries: 10
+  #   delay: 5
+  #   until: talos_health.rc == 0
+  #   loop: "{{ masters }}"
+  #   loop_control:
+  #     label: "{{ item }}"
+  #   delegate_to: localhost
 
-  ##################################################################
-  # 6 ▸ bootstrap etcd (idempotent)
-  ##################################################################
-  - name: Bootstrap cluster (etcd)
-    command: >
-      {{ talosctl }} bootstrap
-      --nodes {{ masters[0] }}
-      --endpoints {{ masters[0] }}
-    register: bootstrap
-    retries: 5
-    delay: 15
-    until: bootstrap.rc == 0
+  # - name: Ensure Kubernetes API is reachable
+  #   wait_for:
+  #     host: "{{ masters[0] }}"
+  #     port: "{{ k8s_port }}"
+  #     timeout: 300
+  #   delegate_to: localhost
 
-  ##################################################################
-  # 7 ▸ wait for Kubernetes API + pull kubeconfig
-  ##################################################################
-  - name: Wait for Kubernetes API :6443
-    wait_for:
-      host: "{{ masters[0] }}"
-      port: 6443
-      timeout: 300
-    delegate_to: localhost
+  # - name: Download kubeconfig
+  #   command: >
+  #     {{ talosctl }} kubeconfig
+  #     {{ talos_dir }}/kubeconfig.yaml
+  #     -n {{ masters[0] }}
+  #     --endpoints {{ masters[0] }}
+  #     --force
+  #   retries: 5
+  #   delay: 5
+  #   register: kubeconfig_fetch
+  #   until: kubeconfig_fetch.rc == 0
 
-  - name: Download kubeconfig
-    command: >
-      {{ talosctl }} kubeconfig {{ talos_dir }}/kubeconfig.yaml
-      --nodes {{ masters[0] }} --force
-    delegate_to: localhost
-    changed_when: false
+  # - debug:
+  #     msg: "✔ kubeconfig saved to {{ talos_dir }}/kubeconfig.yaml"
 
-  - debug:
-      msg: "✔  kubeconfig saved to {{ talos_dir }}/kubeconfig.yaml"
+  # - name: Apply worker config securely
+  #   when: workers | length > 0
+  #   command: >
+  #     {{ talosctl }} apply-config
+  #     -n {{ item }}
+  #     --endpoints {{ masters[0] }}
+  #     --file {{ talos_dir }}/worker.yaml
+  #   register: wk_apply
+  #   retries: 5
+  #   delay: 10
+  #   until: wk_apply.rc == 0
+  #   loop: "{{ workers }}"
+  #   loop_control:
+  #     label: "{{ item }}"
+  #   delegate_to: localhost
+
+  # - name: Wait for Talos health on worker nodes
+  #   when: workers | length > 0
+  #   command: >
+  #     {{ talosctl }} health
+  #     -n {{ item }}
+  #     --endpoints {{ masters[0] }}
+  #   register: talos_health
+  #   retries: 10
+  #   delay: 5
+  #   until: talos_health.rc == 0
+  #   loop: "{{ workers }}"
+  #   loop_control:
+  #     label: "{{ item }}"
+  #   delegate_to: localhost
