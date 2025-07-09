@@ -29,6 +29,7 @@ variable "storage_pool" {
 }
 
 variable "storage_pool_path" {
+  description = "Number of compute nodes"
   type        = string
   default     = "/var/lib/libvirt/images"
 }
@@ -57,6 +58,11 @@ variable "master_memory" {
   default     = 8192
 }
 
+variable "master_root_disk_size" {
+  description = "Size of master root disks in bytes"
+  type        = number
+  default     = 21474836480
+}
 
 variable "master_extra_disks" {
   description = "Extra disks per master node"
@@ -80,6 +86,11 @@ variable "worker_memory" {
   description = "Memory in MB for worker nodes"
   type        = number
   default     = 8192
+}
+variable "worker_root_disk_size" {
+  description = "Size of worker root disks in bytes"
+  type        = number
+  default     = 21474836480
 }
 
 variable "worker_extra_disks" {
