@@ -1,3 +1,9 @@
+variable "enable_ansible" {
+  description = "Run the Ansible bootstrap playbook after VMs come up"
+  type = bool
+  default = false 
+}
+
 variable "cluster_name" {
   description = "Management cluster name"
   type        = string
@@ -19,7 +25,19 @@ variable "k8s_version"     {
 variable "control_plane_vip" {
   description = "Virtual IP for Talos control plane"
   type        = string
-  default     = "10.10.10.100"
+  default     = "10.10.45.100"
+}
+
+variable "master_ip_offset" {
+  description = "Starting offset for master static IPs in the network CIDR"
+  type        = number
+  default     = 10
+}
+
+variable "worker_ip_offset" {
+  description = "Starting offset for worker static IPs in the network CIDR"
+  type        = number
+  default     = 50
 }
 
 variable "storage_pool" {
@@ -29,7 +47,7 @@ variable "storage_pool" {
 }
 
 variable "storage_pool_path" {
-  description = "Number of compute nodes"
+  description = "Path to pool storage"
   type        = string
   default     = "/var/lib/libvirt/images"
 }

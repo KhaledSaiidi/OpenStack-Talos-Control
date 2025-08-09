@@ -1,0 +1,27 @@
+---
+- name: Bootstrap / reconcile Talos cluster
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    masters: >-
+      {{ groups['masters'] | map('extract', hostvars, 'ansible_host') | list }}
+    control_plane: >-
+      {{ hostvars[groups['masters'][0]].ansible_host }}
+    others_master: >-
+      {{ groups['masters'][1:] | map('extract', hostvars, 'ansible_host') | list }}
+    workers: >-
+      {{ groups['workers'] | map('extract', hostvars, 'ansible_host') | list }}
+    talosctl:      "/usr/local/bin/talosctl"
+    k8s_port:      6443
+
+    talos_dir:     "{{ playbook_dir }}/talos-outputs"
+    talosconfig:   "{{ talos_dir }}/talosconfig"
+    talos_version: "{{ hostvars['localhost']['talos_version'] | default('') }}"
+    k8s_version:   "{{ hostvars['localhost']['k8s_version'] | default('') }}"
+
+  environment:
+    TALOSCONFIG: "{{ talosconfig }}"
+
+  roles:
+    - configure-cluster

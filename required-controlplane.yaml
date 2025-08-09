@@ -110,3 +110,14 @@ cluster:
             key: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSU0wV3AwOWRWK3JCVjh0MkJjNmVnSi96OVlic3YzNkdvZWFhWE05eldocThvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFM0g1Tm04b1Q5ODNXTGRQUW84akdiMGV6VkVGNnFCYWl5b3UyVHhuazhQbmlSTmdRK3h0RgpsV1VIWXIrejZhMjVGbnhabitwQlRaczlaakNXdGU5OFNnPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
     extraManifests: []
     inlineManifests: []
+
+
+
+
+
+<console type='pty'>
+  <target type='serial' port='0'/>
+</console>
+<serial type='pty'>
+  <target port='0'/>
+</serial>

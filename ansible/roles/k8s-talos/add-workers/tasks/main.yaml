@@ -1,0 +1,5 @@
+---
+- name: Apply config to first worker
+  ansible.builtin.command:
+    cmd: talosctl apply-config --insecure --nodes {{ workers }} --file {{ config_directory }}/worker.yaml
+  changed_when: true

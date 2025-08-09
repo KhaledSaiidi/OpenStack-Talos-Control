@@ -1,3 +1,15 @@
+# Talos Image version
+talos_gen_version           = "v1.10.5"
+
+# K8S version
+k8s_version                 = "1.32.0"
+
+# Optional static IP offsets
+master_ip_offset = 10
+worker_ip_offset = 50
+
+storage_pool_path = "/var/lib/libvirt/images"
+
 # Node counts
 master_count = 1
 worker_count    = 2
@@ -21,6 +33,3 @@ network_name           = "k8s-net"
 
 # Storage pool
 storage_pool           = "k8s_pool"
-
-# Talos Image version
-talos_gen_version           = "v1.10.5"

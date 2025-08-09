@@ -13,7 +13,19 @@ echo -e "${YELLOW}Updating package lists …${NC}"
 apt update -y
 
 echo -e "${YELLOW}Checking and installing required packages …${NC}"
-packages=(libvirt-daemon-system qemu-system-x86 genisoimage libvirt-clients bridge-utils zstd qemu-utils curl tar)
+packages=(
+  libvirt-daemon-system 
+  qemu-system-x86 
+  genisoimage 
+  libvirt-clients 
+  bridge-utils 
+  zstd 
+  qemu-utils 
+  curl 
+  tar
+  ovmf
+  dnsmasq
+)
 to_install=()
 for pkg in "${packages[@]}"; do
   dpkg -s "$pkg" >/dev/null 2>&1 || to_install+=("$pkg")
@@ -82,5 +94,26 @@ fi
 
 echo -e "${YELLOW}Verifying libvirt-qemu user/group …${NC}"
 id libvirt-qemu >/dev/null 2>&1 || { echo -e "${RED}libvirt-qemu user/group missing!${NC}"; exit 1; }
+
+# Check for OVMF firmware
+echo -e "${YELLOW}Checking for OVMF UEFI firmware …${NC}"
+OVMF_PATH=$(find /usr/share -name "OVMF_CODE.fd" 2>/dev/null | head -n1)
+if [ -z "$OVMF_PATH" ]; then
+  echo -e "${RED}OVMF firmware not found! Please verify installation.${NC}"
+  echo -e "${YELLOW}Try running: sudo apt install ovmf${NC}"
+  exit 1
+else
+  echo -e "${GREEN}OVMF UEFI firmware found at: $OVMF_PATH${NC}"
+fi
+
+# Check for dnsmasq service
+echo -e "${YELLOW}Checking dnsmasq service status …${NC}"
+if systemctl is-enabled dnsmasq >/dev/null 2>&1; then
+  echo -e "${GREEN}dnsmasq service is enabled.${NC}"
+else
+  echo -e "${YELLOW}Enabling and starting dnsmasq service …${NC}"
+  systemctl enable dnsmasq
+  systemctl start dnsmasq
+fi
 
 echo -e "${GREEN}Host preparation complete. Run 'terraform apply'.${NC}"
