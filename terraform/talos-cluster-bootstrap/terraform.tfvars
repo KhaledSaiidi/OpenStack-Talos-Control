@@ -10,6 +10,8 @@ worker_ip_offset = 50
 
 storage_pool_path = "/var/lib/libvirt/images"
 
+enable_ansible = false
+
 # Node counts
 master_count = 1
 worker_count    = 2

@@ -317,9 +317,9 @@ resource "null_resource" "wait_for_talos" {
   ]
 
   triggers = {
-    node_ips      = join(",", local.node_ips)                 # e.g. "10.10.45.10,10.10.45.50,10.10.45.51"
-    retries       = tostring(var.talos_boot_retries)          # e.g. 100
-    interval      = tostring(var.talos_boot_retry_interval_seconds) # e.g. 15
+    node_ips      = join(",", local.node_ips)
+    retries       = tostring(var.talos_boot_retries)
+    interval      = tostring(var.talos_boot_retry_interval_seconds)
     talos_version = var.talos_gen_version
   }
 
