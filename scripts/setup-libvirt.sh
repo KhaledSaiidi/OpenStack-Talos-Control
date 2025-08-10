@@ -25,6 +25,7 @@ packages=(
   tar
   ovmf
   dnsmasq
+  xsltproc
 )
 to_install=()
 for pkg in "${packages[@]}"; do

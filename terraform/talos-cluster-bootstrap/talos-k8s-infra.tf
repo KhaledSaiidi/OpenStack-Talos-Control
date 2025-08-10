@@ -56,7 +56,7 @@ resource "null_resource" "talos_pxe_files" {
 #!ipxe
 dhcp
 set base tftp://${cidrhost(var.network_cidr, 1)}
-kernel $${base}/vmlinuz-amd64 talos.platform=metal console=ttyS0
+kernel $${base}/vmlinuz-amd64 talos.platform=metal slab_nomerge pti=on ip=dhcp console=ttyS0,115200 console=tty0
 initrd $${base}/initramfs-amd64.xz
 boot
 IPXE
@@ -95,6 +95,7 @@ resource "libvirt_network" "k8s_net" {
       option_name  = "dhcp-range"
       option_value = "${cidrhost(var.network_cidr, 100)},${cidrhost(var.network_cidr, 200)},12h"
     }
+
     # Default gateway & DNS for guests
     options {
       option_name  = "dhcp-option"
@@ -103,6 +104,12 @@ resource "libvirt_network" "k8s_net" {
     options {
       option_name  = "dhcp-option"
       option_value = "option:dns-server,${cidrhost(var.network_cidr, 1)}"
+    }
+
+    # 🔹 Tell clients explicitly who the TFTP/next-server is (Option 66)
+    options {
+      option_name  = "dhcp-option"
+      option_value = "66,${cidrhost(var.network_cidr, 1)}"
     }
 
     # Detect UEFI
@@ -130,15 +137,17 @@ resource "libvirt_network" "k8s_net" {
     }
 
     # Stage 1 for UEFI: give iPXE only if NOT already iPXE
+    # 🔹 Include explicit next-server ip as the 3rd field
     options {
       option_name  = "dhcp-boot"
-      option_value = "tag:efi,tag:!ipxe,ipxe.efi"
+      option_value = "tag:efi,tag:!ipxe,ipxe.efi,,${cidrhost(var.network_cidr, 1)}"
     }
 
     # Stage 2 for iPXE: chain to our script (MUST be last dhcp-boot)
+    # 🔹 Include explicit next-server ip as the 3rd field
     options {
       option_name  = "dhcp-boot"
-      option_value = "tag:ipxe,talos.ipxe"
+      option_value = "tag:ipxe,talos.ipxe,,${cidrhost(var.network_cidr, 1)}"
     }
 
     # Static DHCP bindings (MAC -> IP)
@@ -149,7 +158,9 @@ resource "libvirt_network" "k8s_net" {
         option_value = "${options.value.mac},${options.value.ip}"
       }
     }
-    options { option_name = "log-dhcp" } # <- uncomment only for debugging
+
+    # Uncomment while debugging
+    options { option_name = "log-dhcp" }
   }
 }
 
@@ -216,19 +227,20 @@ resource "libvirt_domain" "master" {
     wait_for_lease = true
     }
 
-  boot_device {
-  dev = ["network", "hd"]
-  }
-
   cpu {
     mode = "host-passthrough"
   }
   nvram {
-  file     = "/var/lib/libvirt/qemu/nvram/${format("master-%d_VARS.fd", count.index + 1)}"
-  template = local.ovmf_vars_path
+    file     = "/var/lib/libvirt/qemu/nvram/${format("master-%d_%d_VARS.fd", count.index + 1, var.nvram_epoch)}"
+    template = local.ovmf_vars_path
+  }
+  xml {
+  xslt = file("${path.module}/templates/uefi-bootorder.xsl")
   }
   graphics { 
-    type = "vnc" 
+    type = "vnc"
+    listen_type    = "address"
+    listen_address = "127.0.0.1"
     autoport = true 
   }
 
@@ -266,19 +278,20 @@ resource "libvirt_domain" "worker" {
     wait_for_lease = true
     }
 
-  boot_device {
-  dev = ["network", "hd"]
-  }
-
   cpu {
     mode = "host-passthrough"
   }
   nvram {
-    file     = "/var/lib/libvirt/qemu/nvram/${format("worker-%d_VARS.fd", count.index + 1)}"
+    file     = "/var/lib/libvirt/qemu/nvram/${format("worker-%d_%d_VARS.fd", count.index + 1, var.nvram_epoch)}"
     template = local.ovmf_vars_path
   }
+  xml {
+  xslt = file("${path.module}/templates/uefi-bootorder.xsl")
+  }
   graphics { 
-    type = "vnc" 
+    type = "vnc"
+    listen_type    = "address"
+    listen_address = "127.0.0.1"
     autoport = true 
   }
 
@@ -295,14 +308,64 @@ resource "local_file" "ansible_inventory" {
   file_permission = "0644"
 }
 
-resource "null_resource" "ansible_provision" {
-  count = var.enable_ansible ? 1 : 0
+resource "null_resource" "wait_for_talos" {
   depends_on = [
     libvirt_domain.master,
     libvirt_domain.worker,
-    local_file.ansible_inventory
+    libvirt_network.k8s_net,
+    null_resource.talos_pxe_files,
   ]
 
+  triggers = {
+    node_ips      = join(",", local.node_ips)                 # e.g. "10.10.45.10,10.10.45.50,10.10.45.51"
+    retries       = tostring(var.talos_boot_retries)          # e.g. 100
+    interval      = tostring(var.talos_boot_retry_interval_seconds) # e.g. 15
+    talos_version = var.talos_gen_version
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      set -euo pipefail
+
+      node_ips="${self.triggers.node_ips}"
+      retries="${self.triggers.retries}"
+      interval="${self.triggers.interval}"
+
+      check_port() {
+        local ip="$1"
+        if command -v nc >/dev/null 2>&1; then
+          nc -z -w2 "$ip" 50000
+        else
+          timeout 2 bash -lc ">/dev/tcp/$ip/50000" >/dev/null 2>&1
+        fi
+      }
+
+      for ip in $(echo "$node_ips" | tr ',' ' '); do
+        printf 'Waiting for %s:50000 (Talos maintenance API) - max %s tries, every %ss\n' "$ip" "$retries" "$interval"
+        attempt=0
+        until check_port "$ip"; do
+          attempt=$((attempt + 1))
+          if (( attempt >= retries )); then
+            printf 'ERROR: %s:50000 not reachable after %s attempts.\n' "$ip" "$retries" >&2
+            exit 1
+          fi
+          remaining=$((retries - attempt))
+          printf 'Not up yet: %s:50000 - retry %s/%s (%s left).\n' "$ip" "$attempt" "$retries" "$remaining"
+          sleep "$interval"
+        done
+        printf 'OK: %s:50000 is reachable.\n' "$ip"
+      done
+    EOT
+  }
+}
+
+resource "null_resource" "ansible_provision" {
+  count = var.enable_ansible ? 1 : 0
+  depends_on = [
+    null_resource.wait_for_talos,
+    local_file.ansible_inventory,
+  ]
   provisioner "local-exec" {
     command = <<EOF
       PYTHONUNBUFFERED=1 ansible-playbook \

@@ -28,6 +28,12 @@ variable "control_plane_vip" {
   default     = "10.10.45.100"
 }
 
+variable "nvram_epoch" {
+  type        = number
+  default     = 1
+  description = "Bump to regenerate UEFI NVRAM files (resets BootOrder)."
+}
+
 variable "master_ip_offset" {
   description = "Starting offset for master static IPs in the network CIDR"
   type        = number
@@ -153,4 +159,16 @@ variable "network_cidr" {
     condition     = can(cidrhost(var.network_cidr, 0))
     error_message = "Network CIDR must be a valid CIDR notation."
   }
+}
+
+variable "talos_boot_retries" {
+  description = "How many times to retry the port check per node"
+  type        = number
+  default     = 30
+}
+
+variable "talos_boot_retry_interval_seconds" {
+  description = "Seconds to sleep between retries"
+  type        = number
+  default     = 15
 }

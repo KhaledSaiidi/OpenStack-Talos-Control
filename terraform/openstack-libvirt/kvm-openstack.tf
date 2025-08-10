@@ -144,6 +144,16 @@ resource "libvirt_domain" "controller" {
   cpu {
     mode = "host-passthrough"
   }
+  graphics { 
+    type = "vnc" 
+    autoport = true 
+  }
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = "0"
+  }
 }
 
 # Compute nodes
@@ -175,6 +185,16 @@ resource "libvirt_domain" "compute" {
   cpu {
     mode = "host-passthrough"
   }
+  graphics { 
+    type = "vnc" 
+    autoport = true 
+  }
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = "0"
+  }
 }
 
 # Storage nodes
@@ -205,6 +225,16 @@ resource "libvirt_domain" "storage" {
 
   cpu {
     mode = "host-passthrough"
+  }
+  graphics { 
+    type = "vnc" 
+    autoport = true 
+  }
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = "0"
   }
 }
 

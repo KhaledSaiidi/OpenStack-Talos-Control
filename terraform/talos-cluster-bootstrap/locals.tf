@@ -3,6 +3,11 @@ locals {
   ovmf_path        = data.external.ovmf_bridge.result["ovmf_path"]
   ovmf_vars_path   = data.external.ovmf_bridge.result["ovmf_vars_path"]
   
+  node_ips = concat(
+    [for m in local.generate_ip_mac.masters : m.ip],
+    [for w in local.generate_ip_mac.workers : w.ip],
+  )
+
   generate_ip_mac = {
     masters = [
       for idx in range(var.master_count) : {
