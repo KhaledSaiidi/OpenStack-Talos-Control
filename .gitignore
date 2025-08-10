@@ -30,4 +30,10 @@ override.tf.json
 terraform.rc
 .terraform.lock.hcl
 openstack_private_key.pem
-.vscode/
+.vscode/terraform/k8s-libvirt/talos-image/
+ansible/roles/k8s-talos/talos-outputs/
+terraform/k8s-libvirt/talos-image/
+terraform/k8s-libvirt/ansible_inventory.yaml
+terraform/talos-cluster-bootstrap/vmlinuz-amd64
+terraform/talos-cluster-bootstrap/initramfs-amd64.xz
+terraform/talos-cluster-bootstrap/openstack-infra-automation/ansible/roles/k8s-talos/talos-outputs/

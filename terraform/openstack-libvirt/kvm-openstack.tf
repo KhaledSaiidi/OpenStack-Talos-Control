@@ -37,7 +37,6 @@ resource "libvirt_volume" "controller_disk" {
   name           = "controller-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
-  size           = var.controller_disk_size
   format         = "qcow2"
 }
 
@@ -47,7 +46,6 @@ resource "libvirt_volume" "compute_disk" {
   name           = "compute-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
-  size           = var.compute_disk_size
   format         = "qcow2"
 }
 
@@ -57,7 +55,6 @@ resource "libvirt_volume" "storage_disk" {
   name           = "storage-${count.index}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
-  size           = var.storage_disk_size
   format         = "qcow2"
 }
 
@@ -147,6 +144,16 @@ resource "libvirt_domain" "controller" {
   cpu {
     mode = "host-passthrough"
   }
+  graphics { 
+    type = "vnc" 
+    autoport = true 
+  }
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = "0"
+  }
 }
 
 # Compute nodes
@@ -178,6 +185,16 @@ resource "libvirt_domain" "compute" {
   cpu {
     mode = "host-passthrough"
   }
+  graphics { 
+    type = "vnc" 
+    autoport = true 
+  }
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = "0"
+  }
 }
 
 # Storage nodes
@@ -208,6 +225,16 @@ resource "libvirt_domain" "storage" {
 
   cpu {
     mode = "host-passthrough"
+  }
+  graphics { 
+    type = "vnc" 
+    autoport = true 
+  }
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = "0"
   }
 }
 
@@ -263,7 +290,7 @@ resource  "null_resource" "ansible_provision" {
     command = <<EOF
       PYTHONUNBUFFERED=1 ansible-playbook \
         -i ${local_file.ansible_inventory.filename} \
-        ../../ansible/site.yaml \
+        ../../ansible/roles/openstack/site.yaml \
         || exit 1
     EOF
   }
