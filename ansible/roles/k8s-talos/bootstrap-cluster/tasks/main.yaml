@@ -1,0 +1,36 @@
+---
+- name: Point talosctl endpoint to first control plane
+  command: >
+    {{ talosctl }} config endpoint {{ control_plane }}
+    --talosconfig {{ talosconfig }}
+  changed_when: true
+
+- name: Point talosctl node to first control plane
+  command: >
+    {{ talosctl }} config node {{ control_plane }}
+    --talosconfig {{ talosconfig }}
+  changed_when: true
+
+- name: Wait for Talos API on control_plane to respond
+  command: >
+    {{ talosctl }} -n {{ control_plane }} version --talosconfig {{ talosconfig }}
+  register: talos_ready
+  retries: 60
+  delay: 10
+  until: talos_ready.rc == 0
+  changed_when: false
+
+- name: Bootstrap etcd/k8s control plane (once)
+  command: >
+    {{ talosctl }} bootstrap --talosconfig {{ talosconfig }}
+  register: bootstrap_result
+  retries: 10
+  delay: 30
+  until: bootstrap_result.rc == 0
+  changed_when: bootstrap_result.rc == 0
+
+- name: Fetch kubeconfig into talos_dir
+  command: >
+    {{ talosctl }} kubeconfig {{ talos_dir }} --force --talosconfig {{ talosconfig }}
+  register: kubeconfig_out
+  changed_when: kubeconfig_out.rc == 0
