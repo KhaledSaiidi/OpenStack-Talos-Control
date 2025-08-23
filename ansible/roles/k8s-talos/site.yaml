@@ -2,26 +2,52 @@
 - name: Bootstrap / reconcile Talos cluster
   hosts: localhost
   gather_facts: false
+  connection: local
+  become: true
+  become_method: sudo
 
   vars:
     masters: >-
       {{ groups['masters'] | map('extract', hostvars, 'ansible_host') | list }}
     control_plane: >-
-      {{ hostvars[groups['masters'][0]].ansible_host }}
-    others_master: >-
-      {{ groups['masters'][1:] | map('extract', hostvars, 'ansible_host') | list }}
+      {{ (groups['masters'] | map('extract', hostvars, 'ansible_host') | list)[0] }}
+    other_masters: >-
+      {{ (groups['masters'] | map('extract', hostvars, 'ansible_host') | list)[1:] }}
     workers: >-
       {{ groups['workers'] | map('extract', hostvars, 'ansible_host') | list }}
-    talosctl:      "/usr/local/bin/talosctl"
-    k8s_port:      6443
 
-    talos_dir:     "{{ playbook_dir }}/talos-outputs"
-    talosconfig:   "{{ talos_dir }}/talosconfig"
-    talos_version: "{{ hostvars['localhost']['talos_version'] | default('') }}"
-    k8s_version:   "{{ hostvars['localhost']['k8s_version'] | default('') }}"
+    talosctl: /usr/local/bin/talosctl
+    talos_dir:   "{{ playbook_dir }}/talos-outputs"
+    talosconfig: "{{ talos_dir }}/talosconfig"
+    # talos_version / k8s_version / cluster_name come from inventory all.vars
 
   environment:
     TALOSCONFIG: "{{ talosconfig }}"
 
+  pre_tasks:
+    - name: Assert at least one control-plane node exists
+      assert:
+        that: masters | length > 0
+        fail_msg: "No masters defined in inventory."
+
+    - name: Ensure talos outputs dir exists
+      file:
+        path: "{{ talos_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check talosctl present
+      command: "{{ talosctl }} version --client"
+      changed_when: false
+
+    - name: Show effective versions (from inventory all.vars)
+      debug:
+        msg:
+          - "talos_version={{ talos_version | default('unset') }}"
+          - "k8s_version={{ k8s_version | default('unset') }}"
+
   roles:
     - configure-cluster
+    - apply-config
+    - bootstrap-cluster
+    - add-workers

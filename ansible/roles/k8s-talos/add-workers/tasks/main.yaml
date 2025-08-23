@@ -1,5 +1,49 @@
 ---
-- name: Apply config to first worker
-  ansible.builtin.command:
-    cmd: talosctl apply-config --insecure --nodes {{ workers }} --file {{ config_directory }}/worker.yaml
-  changed_when: true
+- name: Build worker list
+  set_fact:
+    worker_list: "{{ workers | list }}"
+
+- name: Ensure talosctl endpoint points to first CP
+  command: >
+    {{ talosctl }} config endpoint {{ control_plane }}
+    --talosconfig {{ talosconfig }}
+  changed_when: false
+
+- name: Wait for maintenance API up (pre-apply) on each worker
+  wait_for:
+    host: "{{ item }}"
+    port: 50000
+    state: started
+    timeout: 600
+  loop: "{{ worker_list }}"
+  when: worker_list | length > 0
+
+- name: Apply worker config on each worker (install + reboot)
+  command: >
+    {{ talosctl }} apply-config --insecure
+    --nodes {{ item }}
+    --file {{ talos_dir }}/worker.yaml
+  register: apply_res
+  changed_when: apply_res.rc == 0
+  loop: "{{ worker_list }}"
+  when: worker_list | length > 0
+
+- name: Wait for API to go down (reboot) on each worker
+  wait_for:
+    host: "{{ item }}"
+    port: 50000
+    state: drained
+    timeout: 300
+  ignore_errors: true
+  loop: "{{ worker_list }}"
+  when: worker_list | length > 0
+
+- name: Wait for Talos API (post-install) on each worker
+  command: >
+    {{ talosctl }} -n {{ item }} version --talosconfig {{ talosconfig }}
+  register: ver_check
+  until: ver_check.rc == 0
+  retries: 100
+  delay: 10
+  loop: "{{ worker_list }}"
+  when: worker_list | length > 0

@@ -37,3 +37,4 @@ terraform/k8s-libvirt/ansible_inventory.yaml
 terraform/talos-cluster-bootstrap/vmlinuz-amd64
 terraform/talos-cluster-bootstrap/initramfs-amd64.xz
 terraform/talos-cluster-bootstrap/openstack-infra-automation/ansible/roles/k8s-talos/talos-outputs/
+terraform/talos-cluster-bootstrap/ansible_inventory.yaml

@@ -26,6 +26,8 @@ packages=(
   ovmf
   dnsmasq
   xsltproc
+  software-properties-common
+  gnupg
 )
 to_install=()
 for pkg in "${packages[@]}"; do
@@ -116,5 +118,32 @@ else
   systemctl enable dnsmasq
   systemctl start dnsmasq
 fi
+
+# --- EXTRA TOOLS ---
+echo -e "${YELLOW}Installing kubectl …${NC}"
+curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+echo -e "${GREEN}kubectl $(kubectl version --client --short) ready.${NC}"
+
+echo -e "${YELLOW}Installing Helm …${NC}"
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+echo -e "${GREEN}helm $(helm version --short) ready.${NC}"
+
+echo -e "${YELLOW}Installing ArgoCD CLI …${NC}"
+ARGO_VERSION=$(curl -sL https://api.github.com/repos/argoproj/argo-cd/releases/latest | grep tag_name | cut -d '"' -f 4)
+curl -sSL -o /usr/local/bin/argocd "https://github.com/argoproj/argo-cd/releases/download/${ARGO_VERSION}/argocd-linux-amd64"
+chmod +x /usr/local/bin/argocd
+echo -e "${GREEN}argocd $(argocd version --client) ready.${NC}"
+
+echo -e "${YELLOW}Installing Terraform …${NC}"
+TERRAFORM_VERSION=$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r .current_version)
+curl -sLo terraform.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+unzip -o terraform.zip -d /usr/local/bin
+rm terraform.zip
+echo -e "${GREEN}terraform $(terraform version | head -n1) ready.${NC}"
+
+echo -e "${YELLOW}Installing Ansible …${NC}"
+apt install -y ansible
+echo -e "${GREEN}ansible $(ansible --version | head -n1) ready.${NC}"
 
 echo -e "${GREEN}Host preparation complete. Run 'terraform apply'.${NC}"
