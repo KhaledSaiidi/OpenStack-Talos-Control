@@ -3,6 +3,12 @@
   set_fact:
     worker_list: "{{ workers | list }}"
 
+- name: Ensure talosctl endpoint points to first CP
+  command: >
+    {{ talosctl }} config endpoint {{ control_plane }}
+    --talosconfig {{ talosconfig }}
+  changed_when: false
+
 - name: Wait for maintenance API up (pre-apply) on each worker
   wait_for:
     host: "{{ item }}"
@@ -33,24 +39,11 @@
   when: worker_list | length > 0
 
 - name: Wait for Talos API (post-install) on each worker
-  block:
-    - name: "Check Talos API on {{ item }}"
-      command: >
-        {{ talosctl }} -n {{ item }} version --talosconfig {{ talosconfig }}
-      register: ver_out
-      ignore_errors: true
-
-    - name: Show retry status
-      debug:
-        msg: "Waiting for Talos API on {{ item }}... ({{ retries_left }} retries left)"
-      vars:
-        retries_left: "{{ max_retries - (ansible_retry_number | default(0)) }}"
-
+  command: >
+    {{ talosctl }} -n {{ item }} version --talosconfig {{ talosconfig }}
   register: ver_check
   until: ver_check.rc == 0
-  retries: "{{ max_retries | default(100) }}"
+  retries: 100
   delay: 10
   loop: "{{ worker_list }}"
-  vars:
-    max_retries: 100
   when: worker_list | length > 0

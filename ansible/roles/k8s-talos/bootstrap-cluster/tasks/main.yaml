@@ -20,7 +20,33 @@
   until: talos_ready.rc == 0
   changed_when: false
 
-- name: Bootstrap etcd/k8s control plane (once)
+- name: Query etcd service status (JSON) on first CP
+  command: >
+    {{ talosctl }} -n {{ control_plane }} service etcd
+    --talosconfig {{ talosconfig }} -o json
+  register: etcd_svc
+  changed_when: false
+  failed_when: false
+
+- name: Parse etcd service JSON safely (handle both shapes)
+  set_fact:
+    _etcd_parsed: "{{ (etcd_svc.stdout | default('{}')) | from_json }}"
+  when: etcd_svc.rc == 0
+
+- name: Extract etcd state/health (lowercased); tolerate missing keys
+  set_fact:
+    etcd_state:  "{{ (_etcd_parsed.state  | default(_etcd_parsed.status.state  | default(''))) | lower }}"
+    etcd_health: "{{ (_etcd_parsed.health | default(_etcd_parsed.status.health | default(''))) | lower }}"
+  when: etcd_svc.rc == 0
+
+- name: Decide if bootstrap is needed
+  set_fact:
+    etcd_bootstrap_needed: >-
+      {{ (etcd_svc.rc != 0)
+         or (etcd_state not in ['running','ready'])
+      }}
+
+- name: Bootstrap etcd/k8s control plane (once, only if needed)
   command: >
     {{ talosctl }} bootstrap --talosconfig {{ talosconfig }}
   register: bootstrap_result
@@ -28,6 +54,17 @@
   delay: 30
   until: bootstrap_result.rc == 0
   changed_when: bootstrap_result.rc == 0
+  when: etcd_bootstrap_needed
+
+- name: Wait for kube-apiserver to be Running on first CP
+  command: >
+    {{ talosctl }} -n {{ control_plane }} service kube-apiserver
+    --talosconfig {{ talosconfig }} -o json
+  register: kapiserver
+  retries: 60
+  delay: 5
+  until: kapiserver.rc == 0 and ((kapiserver.stdout | from_json).state | lower) == 'running'
+  changed_when: false
 
 - name: Fetch kubeconfig into talos_dir
   command: >

@@ -24,7 +24,6 @@
       --config-patch @{{ talos_dir }}/patch-install.yaml
       {{ '--force' if force_gen_config | default(false) | bool else '' }}
 
-# Use 'when' (not 'creates') so --force actually regenerates when requested
 - name: Generate Talos cluster configs (controlplane.yaml, worker.yaml, talosconfig)
   command: >
     {{ talosctl }} gen config {{ cluster_name }} https://{{ control_plane }}:6443
@@ -35,4 +34,4 @@
   register: gen_result
   changed_when: gen_result.rc == 0
   when: force_gen_config | default(false) | bool
-        or not (lookup('ansible.builtin.fileglob', talos_dir + '/controlplane.yaml', errors='ignore'))
+        or (talos_dir ~ '/controlplane.yaml') is not file
