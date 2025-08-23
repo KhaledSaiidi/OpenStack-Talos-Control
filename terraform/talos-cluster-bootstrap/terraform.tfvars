@@ -17,16 +17,16 @@ master_count = 1
 worker_count    = 2
 
 # master node resources
-master_vcpus       = 4
-master_memory      = 2048 #1536
-master_extra_disks = 1
-master_extra_disk_size = 21474836480
+master_vcpus            = 2
+master_memory           = 10240         # 10 GiB
+master_extra_disks      = 1
+master_extra_disk_size  = 68719476736   # 64 GiB
 
 # worker node resources
-worker_vcpus          = 2
-worker_memory         = 1536
-worker_extra_disks    = 1
-worker_extra_disk_size = 21474836480
+worker_vcpus            = 2
+worker_memory           = 8192          # 8 GiB each
+worker_extra_disks      = 1
+worker_extra_disk_size  = 68719476736   # 64 GiB
 
 # Network configuration
 network_mode           = "nat"

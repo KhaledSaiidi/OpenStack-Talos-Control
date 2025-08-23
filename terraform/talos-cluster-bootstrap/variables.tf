@@ -79,13 +79,13 @@ variable "master_vcpus" {
 variable "master_memory" {
   description = "Memory in MB for master nodes"
   type        = number
-  default     = 8192
+  default     = 10240
 }
 
 variable "master_root_disk_size" {
   description = "Size of master root disks in bytes"
   type        = number
-  default     = 21474836480
+  default     = 42949672960     # 40 GiB
 }
 
 variable "master_extra_disks" {
@@ -97,7 +97,7 @@ variable "master_extra_disks" {
 variable "master_extra_disk_size" {
   description = "Size of master extra disks in bytes"
   type        = number
-  default     = 10737418240  # 10GB
+  default     = 68719476736   # 64 GiB
 }
 
 variable "worker_vcpus" {
@@ -114,7 +114,7 @@ variable "worker_memory" {
 variable "worker_root_disk_size" {
   description = "Size of worker root disks in bytes"
   type        = number
-  default     = 21474836480
+  default     = 64424509440     # 60 GiB
 }
 
 variable "worker_extra_disks" {
@@ -126,7 +126,7 @@ variable "worker_extra_disks" {
 variable "worker_extra_disk_size" {
   description = "Size of worker extra disks in bytes"
   type        = number
-  default     = 10737418240  # 10GB
+  default     = 68719476736  # 10GB
 }
 
 variable "network_name" {
