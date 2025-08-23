@@ -1,0 +1,83 @@
+---
+## OSA container networks
+cidr_networks:
+  container: {{ cidr_container }}
+  tunnel:    {{ cidr_tunnel }}
+  storage:   {{ cidr_storage }}
+
+## Reserve some addresses
+used_ips:
+  - "172.29.236.1,172.29.236.9"
+  - "172.29.236.200,172.29.236.254"
+
+## Provider networks - minimal lab
+global_overrides:
+  provider_networks:
+    - network:
+        container_bridge: "br-mgmt"
+        container_type: "veth"
+        ip_from_q: "container"
+        type: "raw"
+        group_binds: [all_containers, hosts]
+    - network:
+        container_bridge: "br-vxlan"
+        container_type: "veth"
+        ip_from_q: "tunnel"
+        type: "vxlan"
+        range: "1:1000"
+        group_binds: [neutron_ovn_controller, neutron_ovn_metadata, compute_hosts]
+    - network:
+        container_bridge: "br-storage"
+        container_type: "veth"
+        ip_from_q: "storage"
+        type: "raw"
+        group_binds: [glance_api, cinder_api, cinder_volume, cinder_backup]
+
+{# helpers to assign deterministic mgmt IPs per group index #}
+{%- macro mgmt_ip_from_index(start, idx) -%}
+{{ mgmt_octets }}.{{ start + idx }}
+{%- endmacro -%}
+
+## Map inventory → OSA groups with computed br-mgmt IPs
+shared-infra_hosts:
+{% for h in groups['controllers'] | default([]) %}
+  {{ h }}:
+    ip: {{ mgmt_ip_from_index(ctlr_start, loop.index0) }}
+{% endfor %}
+
+repo-infra_hosts:
+{% for h in groups['controllers'] | default([]) %}
+  {{ h }}:
+    ip: {{ mgmt_ip_from_index(ctlr_start, loop.index0) }}
+{% endfor %}
+
+identity_hosts:
+{% for h in groups['controllers'] | default([]) %}
+  {{ h }}:
+    ip: {{ mgmt_ip_from_index(ctlr_start, loop.index0) }}
+{% endfor %}
+
+network-infra_hosts:
+{% for h in groups['controllers'] | default([]) %}
+  {{ h }}:
+    ip: {{ mgmt_ip_from_index(ctlr_start, loop.index0) }}
+{% endfor %}
+
+compute_hosts:
+{% for h in groups['computes'] | default([]) %}
+  {{ h }}:
+    ip: {{ mgmt_ip_from_index(compute_start, loop.index0) }}
+{% endfor %}
+
+storage_hosts:
+{% for h in groups['storage'] | default([]) %}
+  {{ h }}:
+    ip: {{ mgmt_ip_from_index(storage_start, loop.index0) }}
+{% endfor %}
+
+## Optional: make computes L3 gateways in a lab
+network-gateway_hosts:
+{% for h in groups['computes'] | default([]) %}
+  {{ h }}:
+    ip: {{ mgmt_ip_from_index(compute_start, loop.index0) }}
+{% endfor %}

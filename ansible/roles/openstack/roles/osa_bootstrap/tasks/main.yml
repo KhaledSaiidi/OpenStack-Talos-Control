@@ -1,0 +1,71 @@
+---
+- name: Assert at least one controller exists
+  ansible.builtin.assert:
+    that:
+      - groups['controllers'] is defined
+      - groups['controllers'] | length > 0
+    fail_msg: "You must have at least one host in the 'controllers' group."
+
+- name: Ensure OSA workdir exists
+  ansible.builtin.file:
+    path: /opt/openstack-ansible
+    state: directory
+    mode: "0755"
+
+- name: Clone OpenStack-Ansible
+  ansible.builtin.git:
+    repo: "{{ osa_repo }}"
+    dest: /opt/openstack-ansible
+    version: "{{ osa_branch }}"
+    update: yes
+
+- name: Bootstrap Ansible venv & wrapper
+  ansible.builtin.command: bash -c "TMPDIR=/var/tmp scripts/bootstrap-ansible.sh"
+  args:
+    chdir: /opt/openstack-ansible
+    creates: /opt/openstack-ansible/ansible/bin/ansible
+  register: bootstrap_ansible
+  changed_when: "'Installing Ansible' in bootstrap_ansible.stdout or bootstrap_ansible.rc == 0"
+
+- name: Seed /etc/openstack_deploy skeleton (first time only)
+  ansible.builtin.command: rsync -a /opt/openstack-ansible/etc/openstack_deploy/ /etc/openstack_deploy/
+  args:
+    creates: /etc/openstack_deploy/openstack_user_config.yml.example
+
+# render from templates that use your inventory groups dynamically
+- name: Render openstack_user_config.yml
+  ansible.builtin.template:
+    src: openstack_user_config.yml.j2
+    dest: /etc/openstack_deploy/openstack_user_config.yml
+    mode: "0644"
+
+- name: Render user_variables.yml
+  ansible.builtin.template:
+    src: user_variables.yml.j2
+    dest: /etc/openstack_deploy/user_variables.yml
+    mode: "0644"
+
+- name: Generate service passwords/secrets (first time only)
+  ansible.builtin.command: ./scripts/pw-token-gen.py --file /etc/openstack_deploy/user_secrets.yml
+  args:
+    chdir: /opt/openstack-ansible
+    creates: /etc/openstack_deploy/user_secrets.yml
+
+# Run the three standard OSA playbooks
+- name: Run setup-hosts
+  ansible.builtin.command: openstack-ansible setup-hosts.yml
+  args: { chdir: /opt/openstack-ansible/playbooks }
+  register: setup_hosts_rc
+  changed_when: false
+
+- name: Run setup-infrastructure
+  ansible.builtin.command: openstack-ansible setup-infrastructure.yml
+  args: { chdir: /opt/openstack-ansible/playbooks }
+  register: setup_infra_rc
+  changed_when: false
+
+- name: Run setup-openstack
+  ansible.builtin.command: openstack-ansible setup-openstack.yml
+  args: { chdir: /opt/openstack-ansible/playbooks }
+  register: setup_os_rc
+  changed_when: false

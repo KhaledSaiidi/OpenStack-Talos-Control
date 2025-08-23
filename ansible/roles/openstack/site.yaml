@@ -1,72 +1,73 @@
 ---
-- name: Wait for SSH and cloud-init
+# Play 1: Wait for SSH + cloud-init
+- name: Wait for SSH and cloud-init on all nodes
   hosts: all
-  gather_facts: no
+  gather_facts: false
+  vars:
+    cloud_init_timeout_seconds: 1200
   tasks:
-    - name: Wait for SSH to be available
+    - name: Wait for SSH to be reachable
       ansible.builtin.wait_for:
         port: 22
-        host: "{{ ansible_host }}"
+        host: "{{ ansible_host | default(inventory_hostname) }}"
         search_regex: OpenSSH
-        delay: 10
+        delay: 5
         timeout: 300
       delegate_to: localhost
-      
-    - name: Wait for cloud-init to finish
-      ansible.builtin.stat:
-          path: /run/cloud-init/result.json
-      register: cloudinit_status
-      until: cloudinit_status.stat.exists
-      retries: 30
+
+    - name: Wait until cloud-init completes
+      ansible.builtin.shell: cloud-init status --wait
+      args: { warn: false }
+      changed_when: false
+      register: cloudinit_rc
+      retries: "{{ (cloud_init_timeout_seconds // 20) | int }}"
       delay: 20
-      changed_when: false
-      failed_when: not cloudinit_status.stat.exists
-    
-    - name: Log final cloud-init wait result
-      ansible.builtin.debug:
-        msg: "Cloud-init file found: {{ cloudinit_status.stat.exists }}"
+      until: cloudinit_rc.rc == 0
 
-- name: Configure OpenStack on all hosts
+# Play 2: Base OS prep + LVM on storage nodes
+- name: Prepare hosts and storage LVM
   hosts: all
-  gather_facts: yes
-  become: yes
-  tasks:
-    - name: Update system package index and upgrade packages
-      ansible.builtin.apt:
-            update_cache: yes
-            upgrade: safe
-            cache_valid_time: 3600
-      when: ansible_os_family == 'Debian'
-    - name: Debug SSH settings
-      ansible.builtin.debug:
-        msg: "SSH settings: user={{ ansible_user }}, key={{ ansible_ssh_private_key_file }}, args={{ ansible_ssh_common_args }}"
-    - name: Debug environment
-      ansible.builtin.debug:
-        msg: "Environment: tmpdir={{ ansible_tmpdir | default('/tmp') }}, become_user={{ ansible_become_user | default('root') }}"
-    - name: Test SSH connectivity
-      ansible.builtin.command:
-        cmd: "true"
-      changed_when: false
+  become: true
+  vars:
+    cinder_lvm_device: "/dev/vdb"   # change if your extra disk path differs
   roles:
-    - openstack
-
-- name: Run stack.sh on controllers
-  hosts: controllers
-  become: yes
+    - role: osa_hosts_prep
   tasks:
-    - name: Get Openstack directory stats for controllers
-      ansible.builtin.stat:
-        path: /opt/stack/devstack
-      register: devstack_stat
+    - name: Prepare Cinder LVM VG on storage nodes
+      when: "'storage' in group_names"
+      include_role:
+        name: cinder_lvm_prep
 
-    - name: Verify Openstack directory ownership for controllers
-      ansible.builtin.debug:
-        msg: "Openstack dir: {{ devstack_stat.stat }}"
+# Play 3: Bootstrap & deploy OpenStack-Ansible (deploy host = first controller)
+- name: Bootstrap and deploy OpenStack with OpenStack-Ansible
+  hosts: controllers[0]
+  become: true
+  vars:
+    osa_repo:   "https://opendev.org/openstack/openstack-ansible"
+    osa_branch: "stable/epoxy"   # change if you want another maintained series
 
-    - name: Run stack.sh for controllers
-      ansible.builtin.shell:
-        cmd: sudo -u stack /opt/stack/devstack/stack.sh
-        chdir: /opt/stack/devstack
-      args:
-        executable: /bin/bash
-      changed_when: false
+    # OSA container networks
+    cidr_container: "172.29.236.0/22"
+    cidr_tunnel:    "172.29.240.0/22"
+    cidr_storage:   "172.29.244.0/22"
+
+    # Deterministic host IPs in br-mgmt (cidr_container):
+    #  controllers: 172.29.236.10.. (10 + index)
+    #  computes:    172.29.236.21.. (21 + index)
+    #  storage:     172.29.236.31.. (31 + index)
+    mgmt_octets:    "172.29.236"
+    ctlr_start:     10
+    compute_start:  21
+    storage_start:  31
+  roles:
+    - role: osa_bootstrap
+      vars:
+        osa_repo:         "{{ osa_repo }}"
+        osa_branch:       "{{ osa_branch }}"
+        cidr_container:   "{{ cidr_container }}"
+        cidr_tunnel:      "{{ cidr_tunnel }}"
+        cidr_storage:     "{{ cidr_storage }}"
+        mgmt_octets:      "{{ mgmt_octets }}"
+        ctlr_start:       "{{ ctlr_start }}"
+        compute_start:    "{{ compute_start }}"
+        storage_start:    "{{ storage_start }}"

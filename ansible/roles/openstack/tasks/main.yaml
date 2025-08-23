@@ -1,5 +1,0 @@
----
-- ansible.builtin.import_tasks: setup_stack_user.yaml
-- ansible.builtin.import_tasks: install_devstack.yaml
-- ansible.builtin.import_tasks: configure_local_conf.yaml
-- ansible.builtin.import_tasks: legacy-xtables-backend.yaml
