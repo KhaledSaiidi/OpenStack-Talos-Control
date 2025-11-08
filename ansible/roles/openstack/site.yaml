@@ -56,6 +56,8 @@
     #  computes:    172.29.236.21.. (21 + index)
     #  storage:     172.29.236.31.. (31 + index)
     mgmt_octets:    "172.29.236"
+    tunnel_octets:  "172.29.240"
+    storage_octets: "172.29.244"
     ctlr_start:     10
     compute_start:  21
     storage_start:  31
@@ -68,6 +70,8 @@
         cidr_tunnel:      "{{ cidr_tunnel }}"
         cidr_storage:     "{{ cidr_storage }}"
         mgmt_octets:      "{{ mgmt_octets }}"
+        tunnel_octets:    "{{ tunnel_octets }}"
+        storage_octets:   "{{ storage_octets }}"
         ctlr_start:       "{{ ctlr_start }}"
         compute_start:    "{{ compute_start }}"
         storage_start:    "{{ storage_start }}"

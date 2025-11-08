@@ -38,6 +38,7 @@ resource "libvirt_volume" "controller_disk" {
   name           = "controller-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.controller_root_disk_size
   format         = "qcow2"
 }
 
@@ -47,6 +48,7 @@ resource "libvirt_volume" "compute_disk" {
   name           = "compute-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.compute_root_disk_size
   format         = "qcow2"
 }
 
@@ -56,6 +58,7 @@ resource "libvirt_volume" "storage_disk" {
   name           = "storage-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.storage_root_disk_size
   format         = "qcow2"
 }
 
@@ -87,9 +90,9 @@ resource "local_file" "private_key" {
 
 # Cloud-init disks
 resource "libvirt_cloudinit_disk" "controller_init" {
-  count     = var.controller_count
-  name      = "controller-${count.index + 1}-init.iso"
-  pool      = libvirt_pool.openstack_pool.name
+  count = var.controller_count
+  name  = "controller-${count.index + 1}-init.iso"
+  pool  = libvirt_pool.openstack_pool.name
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
     hostname = "controller-${count.index + 1}"
@@ -97,9 +100,9 @@ resource "libvirt_cloudinit_disk" "controller_init" {
 }
 
 resource "libvirt_cloudinit_disk" "compute_init" {
-  count     = var.compute_count
-  name      = "compute-${count.index + 1}-init.iso"
-  pool      = libvirt_pool.openstack_pool.name
+  count = var.compute_count
+  name  = "compute-${count.index + 1}-init.iso"
+  pool  = libvirt_pool.openstack_pool.name
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
     hostname = "compute-${count.index + 1}"
@@ -107,9 +110,9 @@ resource "libvirt_cloudinit_disk" "compute_init" {
 }
 
 resource "libvirt_cloudinit_disk" "storage_init" {
-  count     = var.storage_count
-  name      = "storage-${count.index + 1}-init.iso"
-  pool      = libvirt_pool.openstack_pool.name
+  count = var.storage_count
+  name  = "storage-${count.index + 1}-init.iso"
+  pool  = libvirt_pool.openstack_pool.name
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
     hostname = "storage-${count.index + 1}"
@@ -241,27 +244,27 @@ resource "libvirt_domain" "storage" {
 
 # Extra disks per role (names show 1-based VM number)
 resource "libvirt_volume" "controller_extra_disk" {
-  count          = var.controller_count * var.controller_extra_disks
-  name           = "controller-${floor(count.index / var.controller_extra_disks) + 1}-disk-${count.index % var.controller_extra_disks + 1}"
-  pool           = libvirt_pool.openstack_pool.name
-  size           = var.controller_extra_disk_size
-  format         = "qcow2"
+  count  = var.controller_count * var.controller_extra_disks
+  name   = "controller-${floor(count.index / var.controller_extra_disks) + 1}-disk-${count.index % var.controller_extra_disks + 1}"
+  pool   = libvirt_pool.openstack_pool.name
+  size   = var.controller_extra_disk_size
+  format = "qcow2"
 }
 
 resource "libvirt_volume" "compute_extra_disk" {
-  count          = var.compute_count * var.compute_extra_disks
-  name           = "compute-${floor(count.index / var.compute_extra_disks) + 1}-disk-${count.index % var.compute_extra_disks + 1}"
-  pool           = libvirt_pool.openstack_pool.name
-  size           = var.compute_extra_disk_size
-  format         = "qcow2"
+  count  = var.compute_count * var.compute_extra_disks
+  name   = "compute-${floor(count.index / var.compute_extra_disks) + 1}-disk-${count.index % var.compute_extra_disks + 1}"
+  pool   = libvirt_pool.openstack_pool.name
+  size   = var.compute_extra_disk_size
+  format = "qcow2"
 }
 
 resource "libvirt_volume" "storage_extra_disk" {
-  count          = var.storage_count * var.storage_extra_disks
-  name           = "storage-${floor(count.index / var.storage_extra_disks) + 1}-disk-${count.index % var.storage_extra_disks + 1}"
-  pool           = libvirt_pool.openstack_pool.name
-  size           = var.storage_extra_disk_size
-  format         = "qcow2"
+  count  = var.storage_count * var.storage_extra_disks
+  name   = "storage-${floor(count.index / var.storage_extra_disks) + 1}-disk-${count.index % var.storage_extra_disks + 1}"
+  pool   = libvirt_pool.openstack_pool.name
+  size   = var.storage_extra_disk_size
+  format = "qcow2"
 }
 
 resource "random_password" "openstack_secret" {

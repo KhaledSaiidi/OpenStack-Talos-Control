@@ -35,20 +35,30 @@ variable "storage_count" {
 variable "controller_vcpus" {
   description = "vCPUs for controller nodes"
   type        = number
-  default     = 4
+  default     = 8
   validation {
-    condition     = var.controller_vcpus >= 2
-    error_message = "Controller vCPUs must be at least 2."
+    condition     = var.controller_vcpus >= 4
+    error_message = "Controller vCPUs must be at least 4 for OpenStack-Ansible."
   }
 }
 
 variable "controller_memory" {
   description = "Memory in MB for controller nodes"
   type        = number
-  default     = 8192
+  default     = 16384
   validation {
-    condition     = var.controller_memory >= 1024
-    error_message = "Controller memory must be at least 1024 MB for testing"
+    condition     = var.controller_memory >= 12288
+    error_message = "Controller memory must be at least 12 GiB."
+  }
+}
+
+variable "controller_root_disk_size" {
+  description = "Size of the controller root disk in bytes"
+  type        = number
+  default     = 137438953472 # 128 GiB
+  validation {
+    condition     = var.controller_root_disk_size >= 96636764160
+    error_message = "Controller root disk must be at least 90 GiB."
   }
 }
 
@@ -65,7 +75,7 @@ variable "controller_extra_disks" {
 variable "controller_extra_disk_size" {
   description = "Size of controller extra disks in bytes"
   type        = number
-  default     = 10737418240  # 10GB
+  default     = 10737418240 # 10GB
   validation {
     condition     = var.controller_extra_disk_size >= 10737418240
     error_message = "Controller disk size must be at least 10GB."
@@ -75,20 +85,30 @@ variable "controller_extra_disk_size" {
 variable "compute_vcpus" {
   description = "vCPUs for compute nodes"
   type        = number
-  default     = 4
+  default     = 8
   validation {
-    condition     = var.compute_vcpus >= 2
-    error_message = "Compute vCPUs must be at least 2."
+    condition     = var.compute_vcpus >= 4
+    error_message = "Compute vCPUs must be at least 4."
   }
 }
 
 variable "compute_memory" {
   description = "Memory in MB for compute nodes"
   type        = number
-  default     = 8192
+  default     = 16384
   validation {
-    condition     = var.compute_memory >= 1024
-    error_message = "Compute memory must be at least 1024 MB for testing."
+    condition     = var.compute_memory >= 12288
+    error_message = "Compute memory must be at least 12 GiB."
+  }
+}
+
+variable "compute_root_disk_size" {
+  description = "Size of the compute root disk in bytes"
+  type        = number
+  default     = 103079215104 # 96 GiB
+  validation {
+    condition     = var.compute_root_disk_size >= 85899345920
+    error_message = "Compute root disk must be at least 80 GiB."
   }
 }
 
@@ -106,7 +126,7 @@ variable "compute_extra_disks" {
 variable "compute_extra_disk_size" {
   description = "Size of compute extra disks in bytes"
   type        = number
-  default     = 10737418240  # 10GB
+  default     = 10737418240 # 10GB
   validation {
     condition     = var.compute_extra_disk_size >= 10737418240
     error_message = "Compute disk size must be at least 10GB."
@@ -116,20 +136,30 @@ variable "compute_extra_disk_size" {
 variable "storage_vcpus" {
   description = "vCPUs for storage nodes"
   type        = number
-  default     = 2
+  default     = 6
   validation {
-    condition     = var.storage_vcpus >= 2
-    error_message = "Storage vCPUs must be at least 2."
+    condition     = var.storage_vcpus >= 4
+    error_message = "Storage vCPUs must be at least 4."
   }
 }
 
 variable "storage_memory" {
   description = "Memory in MB for storage nodes"
   type        = number
-  default     = 4096
+  default     = 12288
   validation {
-    condition     = var.storage_memory >= 1024
-    error_message = "Storage memory must be at least 1024 MB for testing."
+    condition     = var.storage_memory >= 8192
+    error_message = "Storage memory must be at least 8 GiB."
+  }
+}
+
+variable "storage_root_disk_size" {
+  description = "Size of the storage root disk in bytes"
+  type        = number
+  default     = 85899345920 # 80 GiB
+  validation {
+    condition     = var.storage_root_disk_size >= 64424509440
+    error_message = "Storage root disk must be at least 60 GiB."
   }
 }
 
@@ -146,7 +176,7 @@ variable "storage_extra_disks" {
 variable "storage_extra_disk_size" {
   description = "Size of storage extra disks in bytes"
   type        = number
-  default     = 21474836480  # 20GB
+  default     = 21474836480 # 20GB
   validation {
     condition     = var.storage_extra_disk_size >= 21474836480
     error_message = "Storage disk size must be at least 20GB."
