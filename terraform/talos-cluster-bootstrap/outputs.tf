@@ -5,7 +5,7 @@ output "master_nodes" {
       hostname = local.generate_ip_mac.masters[i].name
       mac      = local.generate_ip_mac.masters[i].mac
       ip       = local.generate_ip_mac.masters[i].ip
-      disks    = concat(
+      disks = concat(
         [libvirt_volume.master_disk[i].id],
         [
           for j in range(var.master_extra_disks) :
@@ -25,7 +25,7 @@ output "worker_nodes" {
       hostname = local.generate_ip_mac.workers[i].name
       mac      = local.generate_ip_mac.workers[i].mac
       ip       = local.generate_ip_mac.workers[i].ip
-      disks    = concat(
+      disks = concat(
         [libvirt_volume.worker_disk[i].id],
         [
           for j in range(var.worker_extra_disks) :

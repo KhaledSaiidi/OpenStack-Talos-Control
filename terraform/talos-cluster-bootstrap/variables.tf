@@ -1,7 +1,7 @@
 variable "enable_ansible" {
   description = "Run the Ansible bootstrap playbook after VMs come up"
-  type = bool
-  default = false 
+  type        = bool
+  default     = false
 }
 
 variable "cluster_name" {
@@ -16,10 +16,10 @@ variable "talos_gen_version" {
   default     = "v1.10.5"
 }
 
-variable "k8s_version"     { 
+variable "k8s_version" {
   description = "Kubernetes cluster version"
   type        = string
-  default = "1.32.0"   
+  default     = "1.32.0"
 }
 
 variable "control_plane_vip" {
@@ -85,7 +85,7 @@ variable "master_memory" {
 variable "master_root_disk_size" {
   description = "Size of master root disks in bytes"
   type        = number
-  default     = 42949672960     # 40 GiB
+  default     = 42949672960 # 40 GiB
 }
 
 variable "master_extra_disks" {
@@ -97,7 +97,7 @@ variable "master_extra_disks" {
 variable "master_extra_disk_size" {
   description = "Size of master extra disks in bytes"
   type        = number
-  default     = 68719476736   # 64 GiB
+  default     = 68719476736 # 64 GiB
 }
 
 variable "worker_vcpus" {
@@ -114,7 +114,7 @@ variable "worker_memory" {
 variable "worker_root_disk_size" {
   description = "Size of worker root disks in bytes"
   type        = number
-  default     = 64424509440     # 60 GiB
+  default     = 64424509440 # 60 GiB
 }
 
 variable "worker_extra_disks" {
@@ -126,7 +126,7 @@ variable "worker_extra_disks" {
 variable "worker_extra_disk_size" {
   description = "Size of worker extra disks in bytes"
   type        = number
-  default     = 68719476736  # 10GB
+  default     = 68719476736 # 10GB
 }
 
 variable "network_name" {

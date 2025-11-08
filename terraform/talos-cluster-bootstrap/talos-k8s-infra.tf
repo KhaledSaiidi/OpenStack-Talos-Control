@@ -23,7 +23,7 @@ resource "null_resource" "talos_pxe_files" {
   triggers = {
     talos_version  = var.talos_gen_version
     pxe_dir        = local.pxe_dir
-    tftp_server_ip = cidrhost(var.network_cidr, 1)  # libvirt NAT gateway IP
+    tftp_server_ip = cidrhost(var.network_cidr, 1) # libvirt NAT gateway IP
   }
 
   provisioner "local-exec" {
@@ -70,20 +70,20 @@ IPXE
 # Libvirt network
 resource "libvirt_network" "k8s_net" {
   depends_on = [null_resource.talos_pxe_files]
-  name      = var.network_name
-  mode      = var.network_mode                    # "nat" or "bridge"
-  bridge    = var.network_mode == "bridge" ? var.network_bridge : null
-  addresses = var.network_mode == "nat" ? [var.network_cidr] : []
-  autostart = true
+  name       = var.network_name
+  mode       = var.network_mode # "nat" or "bridge"
+  bridge     = var.network_mode == "bridge" ? var.network_bridge : null
+  addresses  = var.network_mode == "nat" ? [var.network_cidr] : []
+  autostart  = true
 
   dhcp { enabled = var.network_mode == "nat" }
-  dns  { enabled = var.network_mode == "nat" }
+  dns { enabled = var.network_mode == "nat" }
 
   # Per-network dnsmasq config (block-style)
   dnsmasq_options {
     # TFTP
     options {
-      option_name  = "enable-tftp"
+      option_name = "enable-tftp"
     }
     options {
       option_name  = "tftp-root"
@@ -166,7 +166,7 @@ resource "libvirt_network" "k8s_net" {
 
 
 data "external" "ovmf_bridge" {
-  program = ["../../scripts/detect_ovmf_bridge.sh", var.network_name]
+  program    = ["../../scripts/detect_ovmf_bridge.sh", var.network_name]
   depends_on = [libvirt_network.k8s_net]
 }
 
@@ -203,12 +203,12 @@ resource "libvirt_volume" "worker_extra_disk" {
 }
 # Masters
 resource "libvirt_domain" "master" {
-  count  = var.master_count
-  name   = "master-${count.index + 1}"
-  vcpu   = var.master_vcpus
-  memory = var.master_memory
-  firmware = local.ovmf_path
-  machine  = "q35"
+  count     = var.master_count
+  name      = "master-${count.index + 1}"
+  vcpu      = var.master_vcpus
+  memory    = var.master_memory
+  firmware  = local.ovmf_path
+  machine   = "q35"
   autostart = true
   disk {
     volume_id = libvirt_volume.master_disk[count.index].id
@@ -223,9 +223,9 @@ resource "libvirt_domain" "master" {
 
   network_interface {
     network_id     = libvirt_network.k8s_net.id
-    mac        = local.generate_ip_mac.masters[count.index].mac
+    mac            = local.generate_ip_mac.masters[count.index].mac
     wait_for_lease = true
-    }
+  }
 
   cpu {
     mode = "host-passthrough"
@@ -235,13 +235,13 @@ resource "libvirt_domain" "master" {
     template = local.ovmf_vars_path
   }
   xml {
-  xslt = file("${path.module}/templates/uefi-bootorder.xsl")
+    xslt = file("${path.module}/templates/uefi-bootorder.xsl")
   }
-  graphics { 
-    type = "vnc"
+  graphics {
+    type           = "vnc"
     listen_type    = "address"
     listen_address = "127.0.0.1"
-    autoport = true 
+    autoport       = true
   }
 
   console {
@@ -253,12 +253,12 @@ resource "libvirt_domain" "master" {
 
 # Workers
 resource "libvirt_domain" "worker" {
-  count  = var.worker_count
-  name   = "worker-${count.index + 1}"
-  vcpu   = var.worker_vcpus
-  memory = var.worker_memory
-  firmware = local.ovmf_path
-  machine  = "q35"
+  count     = var.worker_count
+  name      = "worker-${count.index + 1}"
+  vcpu      = var.worker_vcpus
+  memory    = var.worker_memory
+  firmware  = local.ovmf_path
+  machine   = "q35"
   autostart = true
 
   disk {
@@ -274,9 +274,9 @@ resource "libvirt_domain" "worker" {
 
   network_interface {
     network_id     = libvirt_network.k8s_net.id
-    mac        = local.generate_ip_mac.workers[count.index].mac
+    mac            = local.generate_ip_mac.workers[count.index].mac
     wait_for_lease = true
-    }
+  }
 
   cpu {
     mode = "host-passthrough"
@@ -286,13 +286,13 @@ resource "libvirt_domain" "worker" {
     template = local.ovmf_vars_path
   }
   xml {
-  xslt = file("${path.module}/templates/uefi-bootorder.xsl")
+    xslt = file("${path.module}/templates/uefi-bootorder.xsl")
   }
-  graphics { 
-    type = "vnc"
+  graphics {
+    type           = "vnc"
     listen_type    = "address"
     listen_address = "127.0.0.1"
-    autoport = true 
+    autoport       = true
   }
 
   console {
@@ -325,7 +325,7 @@ resource "null_resource" "wait_for_talos" {
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
+    command     = <<-EOT
       set -euo pipefail
 
       node_ips="${self.triggers.node_ips}"
