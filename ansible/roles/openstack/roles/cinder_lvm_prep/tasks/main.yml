@@ -1,0 +1,30 @@
+---
+- name: Ensure cinder_lvm_device is defined
+  ansible.builtin.assert:
+    that:
+      - cinder_lvm_device is defined
+    fail_msg: "Set cinder_lvm_device (e.g., /dev/vdb)"
+
+- name: Install LVM packages
+  ansible.builtin.apt:
+    name:
+      - lvm2
+      - thin-provisioning-tools
+    state: present
+    update_cache: true
+
+- name: Gather existing VGs
+  ansible.builtin.command: vgdisplay -s
+  register: vg_list
+  changed_when: false
+  failed_when: false
+
+- name: Create PV if missing
+  ansible.builtin.command: pvcreate -ff -y {{ cinder_lvm_device }}
+  when: "'cinder-volumes' not in vg_list.stdout"
+  args: { warn: false }
+
+- name: Create VG cinder-volumes if missing
+  ansible.builtin.command: vgcreate cinder-volumes {{ cinder_lvm_device }}
+  when: "'cinder-volumes' not in vg_list.stdout"
+  args: { warn: false }

@@ -32,29 +32,33 @@ resource "libvirt_volume" "ubuntu_qcow2" {
   format = "qcow2"
 }
 
+# Controller disks (base)
 resource "libvirt_volume" "controller_disk" {
   count          = var.controller_count
-  name           = "controller-${count.index}-disk.qcow2"
+  name           = "controller-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.controller_root_disk_size
   format         = "qcow2"
 }
 
-# Individual disks for compute nodes
+# Compute disks (base)
 resource "libvirt_volume" "compute_disk" {
   count          = var.compute_count
-  name           = "compute-${count.index}-disk.qcow2"
+  name           = "compute-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.compute_root_disk_size
   format         = "qcow2"
 }
 
-# Individual disks for storage nodes
+# Storage disks (base)
 resource "libvirt_volume" "storage_disk" {
   count          = var.storage_count
-  name           = "storage-${count.index}-disk.qcow2"
+  name           = "storage-${count.index + 1}-disk.qcow2"
   pool           = libvirt_pool.openstack_pool.name
   base_volume_id = libvirt_volume.ubuntu_qcow2.id
+  size           = var.storage_root_disk_size
   format         = "qcow2"
 }
 
@@ -86,39 +90,39 @@ resource "local_file" "private_key" {
 
 # Cloud-init disks
 resource "libvirt_cloudinit_disk" "controller_init" {
-  count     = var.controller_count
-  name      = "controller-${count.index}-init.iso"
-  pool      = libvirt_pool.openstack_pool.name
+  count = var.controller_count
+  name  = "controller-${count.index + 1}-init.iso"
+  pool  = libvirt_pool.openstack_pool.name
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
-    hostname = "controller-${count.index}"
+    hostname = "controller-${count.index + 1}"
   })
 }
 
 resource "libvirt_cloudinit_disk" "compute_init" {
-  count     = var.compute_count
-  name      = "compute-${count.index}-init.iso"
-  pool      = libvirt_pool.openstack_pool.name
+  count = var.compute_count
+  name  = "compute-${count.index + 1}-init.iso"
+  pool  = libvirt_pool.openstack_pool.name
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
-    hostname = "compute-${count.index}"
+    hostname = "compute-${count.index + 1}"
   })
 }
 
 resource "libvirt_cloudinit_disk" "storage_init" {
-  count     = var.storage_count
-  name      = "storage-${count.index}-init.iso"
-  pool      = libvirt_pool.openstack_pool.name
+  count = var.storage_count
+  name  = "storage-${count.index + 1}-init.iso"
+  pool  = libvirt_pool.openstack_pool.name
   user_data = templatefile(local.cloud_init_path, {
     ssh_key  = tls_private_key.openstack_key.public_key_openssh
-    hostname = "storage-${count.index}"
+    hostname = "storage-${count.index + 1}"
   })
 }
 
-# Controller nodes
+# Controller VMs
 resource "libvirt_domain" "controller" {
   count  = var.controller_count
-  name   = "controller-${count.index}"
+  name   = "controller-${count.index + 1}"
   vcpu   = var.controller_vcpus
   memory = var.controller_memory
 
@@ -135,7 +139,7 @@ resource "libvirt_domain" "controller" {
 
   network_interface {
     network_id     = libvirt_network.openstack_net.id
-    mac            = format("52:54:00:00:00:%02x", 10 + count.index)
+    mac            = format("52:54:00:00:00:%02x", 10 + count.index + 1) # starts at ...:11
     wait_for_lease = true
   }
 
@@ -144,9 +148,9 @@ resource "libvirt_domain" "controller" {
   cpu {
     mode = "host-passthrough"
   }
-  graphics { 
-    type = "vnc" 
-    autoport = true 
+  graphics {
+    type     = "vnc"
+    autoport = true
   }
 
   console {
@@ -156,10 +160,10 @@ resource "libvirt_domain" "controller" {
   }
 }
 
-# Compute nodes
+# Compute VMs
 resource "libvirt_domain" "compute" {
   count  = var.compute_count
-  name   = "compute-${count.index}"
+  name   = "compute-${count.index + 1}"
   vcpu   = var.compute_vcpus
   memory = var.compute_memory
 
@@ -176,7 +180,7 @@ resource "libvirt_domain" "compute" {
 
   network_interface {
     network_id     = libvirt_network.openstack_net.id
-    mac            = format("52:54:00:00:00:%02x", 20 + count.index)
+    mac            = format("52:54:00:00:00:%02x", 20 + count.index + 1) # starts at ...:21
     wait_for_lease = true
   }
 
@@ -185,9 +189,9 @@ resource "libvirt_domain" "compute" {
   cpu {
     mode = "host-passthrough"
   }
-  graphics { 
-    type = "vnc" 
-    autoport = true 
+  graphics {
+    type     = "vnc"
+    autoport = true
   }
 
   console {
@@ -197,10 +201,10 @@ resource "libvirt_domain" "compute" {
   }
 }
 
-# Storage nodes
+# Storage VMs
 resource "libvirt_domain" "storage" {
   count  = var.storage_count
-  name   = "storage-${count.index}"
+  name   = "storage-${count.index + 1}"
   vcpu   = var.storage_vcpus
   memory = var.storage_memory
 
@@ -217,7 +221,7 @@ resource "libvirt_domain" "storage" {
 
   network_interface {
     network_id     = libvirt_network.openstack_net.id
-    mac            = format("52:54:00:00:00:%02x", 30 + count.index)
+    mac            = format("52:54:00:00:00:%02x", 30 + count.index + 1) # starts at ...:31
     wait_for_lease = true
   }
 
@@ -226,9 +230,9 @@ resource "libvirt_domain" "storage" {
   cpu {
     mode = "host-passthrough"
   }
-  graphics { 
-    type = "vnc" 
-    autoport = true 
+  graphics {
+    type     = "vnc"
+    autoport = true
   }
 
   console {
@@ -238,31 +242,29 @@ resource "libvirt_domain" "storage" {
   }
 }
 
-# Additional disks for controller nodes
+# Extra disks per role (names show 1-based VM number)
 resource "libvirt_volume" "controller_extra_disk" {
-  count          = var.controller_count * var.controller_extra_disks
-  name           = "controller-${floor(count.index / var.controller_extra_disks)}-disk-${count.index % var.controller_extra_disks + 1}"
-  pool           = libvirt_pool.openstack_pool.name
-  size           = var.controller_extra_disk_size
-  format         = "qcow2"
+  count  = var.controller_count * var.controller_extra_disks
+  name   = "controller-${floor(count.index / var.controller_extra_disks) + 1}-disk-${count.index % var.controller_extra_disks + 1}"
+  pool   = libvirt_pool.openstack_pool.name
+  size   = var.controller_extra_disk_size
+  format = "qcow2"
 }
 
-# Additional disks for compute nodes
 resource "libvirt_volume" "compute_extra_disk" {
-  count          = var.compute_count * var.compute_extra_disks
-  name           = "compute-${floor(count.index / var.compute_extra_disks)}-disk-${count.index % var.compute_extra_disks + 1}"
-  pool           = libvirt_pool.openstack_pool.name
-  size           = var.compute_extra_disk_size
-  format         = "qcow2"
+  count  = var.compute_count * var.compute_extra_disks
+  name   = "compute-${floor(count.index / var.compute_extra_disks) + 1}-disk-${count.index % var.compute_extra_disks + 1}"
+  pool   = libvirt_pool.openstack_pool.name
+  size   = var.compute_extra_disk_size
+  format = "qcow2"
 }
 
-# Additional disks for storage nodes
 resource "libvirt_volume" "storage_extra_disk" {
-  count          = var.storage_count * var.storage_extra_disks
-  name           = "storage-${floor(count.index / var.storage_extra_disks)}-disk-${count.index % var.storage_extra_disks + 1}"
-  pool           = libvirt_pool.openstack_pool.name
-  size           = var.storage_extra_disk_size
-  format         = "qcow2"
+  count  = var.storage_count * var.storage_extra_disks
+  name   = "storage-${floor(count.index / var.storage_extra_disks) + 1}-disk-${count.index % var.storage_extra_disks + 1}"
+  pool   = libvirt_pool.openstack_pool.name
+  size   = var.storage_extra_disk_size
+  format = "qcow2"
 }
 
 resource "random_password" "openstack_secret" {
@@ -276,7 +278,7 @@ resource "local_file" "ansible_inventory" {
   file_permission = "0644"
 }
 
-resource  "null_resource" "ansible_provision" {
+resource "null_resource" "ansible_provision" {
   depends_on = [
     libvirt_domain.controller,
     libvirt_domain.compute,

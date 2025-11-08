@@ -1,0 +1,24 @@
+---
+- name: Ensure base packages present
+  ansible.builtin.apt:
+    name:
+      - git
+      - python3
+      - python3-venv
+      - python3-pip
+      - build-essential
+      - libffi-dev
+      - libssl-dev
+      - lvm2
+      - thin-provisioning-tools
+      - jq
+      - rsync
+      - qemu-guest-agent
+    update_cache: true
+    state: present
+
+- name: Enable qemu-guest-agent
+  ansible.builtin.systemd:
+    name: qemu-guest-agent
+    enabled: true
+    state: started

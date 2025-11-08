@@ -70,3 +70,14 @@ output "ansible_inventory" {
     ]
   }
 }
+
+output "ansible_inventory_file" {
+  description = "Rendered inventory file path passed to Ansible"
+  value       = local_file.ansible_inventory.filename
+}
+
+output "ssh_private_key_path" {
+  description = "Private key generated for the OpenStack nodes"
+  value       = local_file.private_key.filename
+  sensitive   = true
+}

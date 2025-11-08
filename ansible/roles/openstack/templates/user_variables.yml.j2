@@ -1,0 +1,34 @@
+---
+debug: false
+
+## Compute hypervisor (nested virt OK in your lab)
+nova_virt_type: "kvm"
+
+## Networking defaults (OVN)
+neutron_plugin_base:
+  - ml2.ovn
+  - router
+
+{# pick the first storage host if present #}
+{% set storage_nodes = groups['storage'] | default([]) %}
+{% set storage_primary = storage_nodes | first %}
+{% if storage_primary and storage_octets is defined and storage_start is defined %}
+  {% set storage_primary_idx = storage_nodes.index(storage_primary) %}
+  {% set storage_primary_ip = storage_octets ~ '.' ~ (storage_start + storage_primary_idx) %}
+{% else %}
+  {% set storage_primary_ip = None %}
+{% endif %}
+
+## Simple Cinder LVM backend
+cinder_backends:
+  lvm:
+    volume_backend_name: LVM_iSCSI
+    volume_driver: cinder.volume.drivers.lvm.LVMVolumeDriver
+    volume_group: "cinder-volumes"
+    target_protocol: iscsi
+    target_helper: lioadm
+    # bind to OSA's storage network address on the chosen storage host
+    iscsi_ip_address: "{{ storage_primary_ip if storage_primary_ip else '127.0.0.1' }}"
+
+## Horizon TLS off for first run
+horizon_enable_ssl: false

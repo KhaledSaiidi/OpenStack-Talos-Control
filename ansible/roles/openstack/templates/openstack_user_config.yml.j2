@@ -1,0 +1,140 @@
+---
+## Deterministic addressing helpers
+{%- macro mgmt_ip_from_index(start, idx) -%}
+{{ mgmt_octets }}.{{ start + idx }}
+{%- endmacro -%}
+
+{%- macro tunnel_ip_from_index(start, idx) -%}
+{{ (tunnel_octets | default(mgmt_octets)) }}.{{ start + idx }}
+{%- endmacro -%}
+
+{%- macro storage_ip_from_index(start, idx) -%}
+{{ (storage_octets | default(mgmt_octets)) }}.{{ start + idx }}
+{%- endmacro -%}
+
+{%- macro host_block(hosts, start) -%}
+{% for host in hosts %}
+  {{ host }}:
+    ip: {{ mgmt_ip_from_index(start, loop.index0) }}
+    container_networks:
+      management_address:
+        address: {{ mgmt_ip_from_index(start, loop.index0) }}
+        bridge: br-mgmt
+        interface: br-mgmt
+      tunnel_address:
+        address: {{ tunnel_ip_from_index(start, loop.index0) }}
+        bridge: br-vxlan
+        interface: br-vxlan
+        type: vxlan
+      storage_address:
+        address: {{ storage_ip_from_index(start, loop.index0) }}
+        bridge: br-storage
+        interface: br-storage
+{% endfor %}
+{%- endmacro -%}
+
+{%- set controllers = groups['controllers'] | default([]) -%}
+{%- set computes = groups['computes'] | default([]) -%}
+{%- set storage_nodes = groups['storage'] | default([]) -%}
+{%- set primary_controller_ip = mgmt_ip_from_index(ctlr_start, 0) -%}
+
+## OSA container networks
+cidr_networks:
+  container: {{ cidr_container }}
+  tunnel:    {{ cidr_tunnel }}
+  storage:   {{ cidr_storage }}
+
+## Keep first and tail addresses reserved for VIP/DHCP
+used_ips:
+  - "{{ mgmt_octets }}.1,{{ mgmt_octets }}.9"
+  - "{{ mgmt_octets }}.200,{{ mgmt_octets }}.254"
+
+global_overrides:
+  internal_lb_vip_address: {{ primary_controller_ip }}
+  external_lb_vip_address: {{ primary_controller_ip }}
+  management_bridge: "br-mgmt"
+  tunnel_bridge: "br-vxlan"
+  storage_bridge: "br-storage"
+  provider_networks:
+    - network:
+        container_bridge: "br-mgmt"
+        container_type: "veth"
+        ip_from_q: "container"
+        type: "raw"
+        group_binds: [all_containers, hosts]
+    - network:
+        container_bridge: "br-vxlan"
+        container_type: "veth"
+        ip_from_q: "tunnel"
+        type: "vxlan"
+        range: "1:1000"
+        group_binds: [neutron_ovn_controller, neutron_ovn_metadata, compute_hosts]
+    - network:
+        container_bridge: "br-storage"
+        container_type: "veth"
+        ip_from_q: "storage"
+        type: "raw"
+        group_binds: [glance_api, cinder_api, cinder_volume, cinder_backup]
+
+shared-infra_hosts:
+{% if controllers | length > 0 %}
+{{ host_block(controllers, ctlr_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+repo-infra_hosts:
+{% if controllers | length > 0 %}
+{{ host_block(controllers, ctlr_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+log_hosts:
+{% if controllers | length > 0 %}
+{{ host_block(controllers, ctlr_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+identity_hosts:
+{% if controllers | length > 0 %}
+{{ host_block(controllers, ctlr_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+network-infra_hosts:
+{% if controllers | length > 0 %}
+{{ host_block(controllers, ctlr_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+haproxy_hosts:
+{% if controllers | length > 0 %}
+{{ host_block(controllers, ctlr_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+compute_hosts:
+{% if computes | length > 0 %}
+{{ host_block(computes, compute_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+storage_hosts:
+{% if storage_nodes | length > 0 %}
+{{ host_block(storage_nodes, storage_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
+
+network-gateway_hosts:
+{% if computes | length > 0 %}
+{{ host_block(computes, compute_start) | indent(2, true) }}
+{% else %}
+  {}
+{% endif %}
