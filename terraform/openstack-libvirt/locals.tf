@@ -47,4 +47,10 @@ locals {
       }
     }
   })
+
+  openstack_role_files = fileset("${path.module}/../../ansible/roles/openstack", "**")
+  openstack_role_hash = sha1(join("", [
+    for file in local.openstack_role_files :
+    filesha1("${path.module}/../../ansible/roles/openstack/${file}")
+  ]))
 }
