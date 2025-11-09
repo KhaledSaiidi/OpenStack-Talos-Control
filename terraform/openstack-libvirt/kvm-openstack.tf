@@ -288,6 +288,12 @@ resource "null_resource" "ansible_provision" {
     local_file.ansible_inventory
   ]
 
+  triggers = {
+    openstack_role_hash = local.openstack_role_hash
+    tfvars_hash         = filesha1("${path.module}/terraform.tfvars")
+    cloud_init_hash     = filesha1(local.cloud_init_path)
+  }
+
   provisioner "local-exec" {
     command = <<EOF
       PYTHONUNBUFFERED=1 ansible-playbook \
