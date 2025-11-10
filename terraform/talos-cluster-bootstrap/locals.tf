@@ -41,10 +41,18 @@ locals {
         }
       }
       vars = {
-        talos_version = var.talos_gen_version
-        k8s_version   = var.k8s_version
-        cluster_name  = var.cluster_name
+        talos_version     = var.talos_gen_version
+        k8s_version       = var.k8s_version
+        cluster_name      = var.cluster_name
+        control_plane_vip = var.control_plane_vip
       }
     }
   })
+
+  talos_role_files = fileset("${path.module}/../../ansible/roles/k8s-talos", "**")
+  talos_role_hash = sha1(join("", [
+    for file in local.talos_role_files :
+    filesha1("${path.module}/../../ansible/roles/k8s-talos/${file}")
+  ]))
+  talos_inventory_hash = sha1(local.ansible_inventory)
 }

@@ -17,18 +17,22 @@
     repo: "{{ osa_repo }}"
     dest: /opt/openstack-ansible
     version: "{{ osa_branch }}"
-    update: yes
+    update: true
 
 - name: Bootstrap Ansible venv & wrapper
   ansible.builtin.command: bash -c "TMPDIR=/var/tmp scripts/bootstrap-ansible.sh"
   args:
     chdir: /opt/openstack-ansible
     creates: /opt/openstack-ansible/ansible/bin/ansible
-  register: bootstrap_ansible
-  changed_when: "'Installing Ansible' in bootstrap_ansible.stdout or bootstrap_ansible.rc == 0"
+  register: osa_bootstrap_ansible
+  changed_when: "'Installing Ansible' in osa_bootstrap_ansible.stdout or osa_bootstrap_ansible.rc == 0"
 
 - name: Seed /etc/openstack_deploy skeleton (first time only)
-  ansible.builtin.command: rsync -a /opt/openstack-ansible/etc/openstack_deploy/ /etc/openstack_deploy/
+  ansible.builtin.synchronize:
+    src: /opt/openstack-ansible/etc/openstack_deploy/
+    dest: /etc/openstack_deploy/
+    archive: true
+  delegate_to: "{{ inventory_hostname }}"
   args:
     creates: /etc/openstack_deploy/openstack_user_config.yml.example
 
@@ -55,17 +59,17 @@
 - name: Run setup-hosts
   ansible.builtin.command: openstack-ansible setup-hosts.yml
   args: { chdir: /opt/openstack-ansible/playbooks }
-  register: setup_hosts_rc
+  register: osa_bootstrap_setup_hosts_rc
   changed_when: false
 
 - name: Run setup-infrastructure
   ansible.builtin.command: openstack-ansible setup-infrastructure.yml
   args: { chdir: /opt/openstack-ansible/playbooks }
-  register: setup_infra_rc
+  register: osa_bootstrap_setup_infra_rc
   changed_when: false
 
 - name: Run setup-openstack
   ansible.builtin.command: openstack-ansible setup-openstack.yml
   args: { chdir: /opt/openstack-ansible/playbooks }
-  register: setup_os_rc
+  register: osa_bootstrap_setup_os_rc
   changed_when: false

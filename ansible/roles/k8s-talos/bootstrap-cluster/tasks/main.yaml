@@ -1,18 +1,19 @@
 ---
-- name: Point talosctl endpoint to first control plane
-  command: >
-    {{ talosctl }} config endpoint {{ control_plane }}
+- name: Configure talosctl endpoints (VIP + masters)
+  ansible.builtin.command: >
+    {{ talosctl }} config endpoint {{ talos_endpoints | join(' ') }}
     --talosconfig {{ talosconfig }}
   changed_when: true
+  when: talos_endpoints | length > 0
 
 - name: Point talosctl node to first control plane
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} config node {{ control_plane }}
     --talosconfig {{ talosconfig }}
   changed_when: true
 
 - name: Wait for Talos API on control_plane to respond
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} -n {{ control_plane }} version --talosconfig {{ talosconfig }}
   register: talos_ready
   retries: 60
@@ -21,7 +22,7 @@
   changed_when: false
 
 - name: Query etcd service status (JSON) on first CP
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} -n {{ control_plane }} service etcd
     --talosconfig {{ talosconfig }} -o json
   register: etcd_svc
@@ -29,25 +30,25 @@
   failed_when: false
 
 - name: Parse etcd service JSON safely (handle both shapes)
-  set_fact:
+  ansible.builtin.set_fact:
     _etcd_parsed: "{{ (etcd_svc.stdout | default('{}')) | from_json }}"
   when: etcd_svc.rc == 0
 
 - name: Extract etcd state/health (lowercased); tolerate missing keys
-  set_fact:
-    etcd_state:  "{{ (_etcd_parsed.state  | default(_etcd_parsed.status.state  | default(''))) | lower }}"
+  ansible.builtin.set_fact:
+    etcd_state: "{{ (_etcd_parsed.state | default(_etcd_parsed.status.state | default(''))) | lower }}"
     etcd_health: "{{ (_etcd_parsed.health | default(_etcd_parsed.status.health | default(''))) | lower }}"
   when: etcd_svc.rc == 0
 
 - name: Decide if bootstrap is needed
-  set_fact:
+  ansible.builtin.set_fact:
     etcd_bootstrap_needed: >-
       {{ (etcd_svc.rc != 0)
          or (etcd_state not in ['running','ready'])
       }}
 
 - name: Bootstrap etcd/k8s control plane (once, only if needed)
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} bootstrap --talosconfig {{ talosconfig }}
   register: bootstrap_result
   retries: 10
@@ -57,7 +58,7 @@
   when: etcd_bootstrap_needed
 
 - name: Wait for kube-apiserver to be Running on first CP
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} -n {{ control_plane }} service kube-apiserver
     --talosconfig {{ talosconfig }} -o json
   register: kapiserver
@@ -67,7 +68,7 @@
   changed_when: false
 
 - name: Fetch kubeconfig into talos_dir
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} kubeconfig {{ talos_dir }} --force --talosconfig {{ talosconfig }}
   register: kubeconfig_out
   changed_when: kubeconfig_out.rc == 0

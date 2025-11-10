@@ -1,16 +1,17 @@
 ---
 - name: Build worker list
-  set_fact:
+  ansible.builtin.set_fact:
     worker_list: "{{ workers | list }}"
 
-- name: Ensure talosctl endpoint points to first CP
-  command: >
-    {{ talosctl }} config endpoint {{ control_plane }}
+- name: Ensure talosctl endpoints are configured
+  ansible.builtin.command: >
+    {{ talosctl }} config endpoint {{ talos_endpoints | join(' ') }}
     --talosconfig {{ talosconfig }}
   changed_when: false
+  when: talos_endpoints | length > 0
 
 - name: Wait for maintenance API up (pre-apply) on each worker
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ item }}"
     port: 50000
     state: started
@@ -19,31 +20,34 @@
   when: worker_list | length > 0
 
 - name: Apply worker config on each worker (install + reboot)
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} apply-config --insecure
     --nodes {{ item }}
     --file {{ talos_dir }}/worker.yaml
+    --talosconfig {{ talosconfig }}
   register: apply_res
   changed_when: apply_res.rc == 0
   loop: "{{ worker_list }}"
   when: worker_list | length > 0
 
 - name: Wait for API to go down (reboot) on each worker
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ item }}"
     port: 50000
     state: drained
     timeout: 300
-  ignore_errors: true
+  register: api_down_check
+  failed_when: api_down_check.msg is not defined or 'Timeout when waiting for' not in api_down_check.msg
   loop: "{{ worker_list }}"
   when: worker_list | length > 0
 
 - name: Wait for Talos API (post-install) on each worker
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} -n {{ item }} version --talosconfig {{ talosconfig }}
   register: ver_check
   until: ver_check.rc == 0
   retries: 100
   delay: 10
+  changed_when: false
   loop: "{{ worker_list }}"
   when: worker_list | length > 0
