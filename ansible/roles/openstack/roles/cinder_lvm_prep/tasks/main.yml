@@ -8,12 +8,12 @@
 - name: Check that the backing device exists
   ansible.builtin.stat:
     path: "{{ cinder_lvm_device }}"
-  register: cinder_device
+  register: cinder_lvm_prep_device
 
 - name: Abort when the Cinder device is missing
   ansible.builtin.fail:
     msg: "The device {{ cinder_lvm_device }} does not exist on {{ inventory_hostname }}."
-  when: not cinder_device.stat.exists
+  when: not cinder_lvm_prep_device.stat.exists
 
 - name: Install LVM packages
   ansible.builtin.apt:

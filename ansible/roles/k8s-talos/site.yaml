@@ -4,7 +4,7 @@
   gather_facts: false
   connection: local
   become: true
-  become_method: sudo
+  become_method: ansible.builtin.sudo
 
   vars:
     masters: >-
@@ -17,34 +17,44 @@
       {{ groups['workers'] | map('extract', hostvars, 'ansible_host') | list }}
 
     talosctl: /usr/local/bin/talosctl
-    talos_dir:   "{{ playbook_dir }}/talos-outputs"
+    talos_dir: "{{ playbook_dir }}/talos-outputs"
     talosconfig: "{{ talos_dir }}/talosconfig"
+    cluster_endpoint: "{{ control_plane_vip | default(control_plane, true) }}"
+    talos_endpoints: >-
+      {{
+        (
+          [control_plane_vip | default('', true)] + masters
+        ) | reject('equalto','') | unique | list
+      }}
     # talos_version / k8s_version / cluster_name come from inventory all.vars
 
   environment:
     TALOSCONFIG: "{{ talosconfig }}"
+    KUBECONFIG: "{{ talos_dir }}/kubeconfig"
 
   pre_tasks:
     - name: Assert at least one control-plane node exists
-      assert:
+      ansible.builtin.assert:
         that: masters | length > 0
         fail_msg: "No masters defined in inventory."
 
     - name: Ensure talos outputs dir exists
-      file:
+      ansible.builtin.file:
         path: "{{ talos_dir }}"
         state: directory
         mode: "0755"
 
     - name: Check talosctl present
-      command: "{{ talosctl }} version --client"
+      ansible.builtin.command: "{{ talosctl }} version --client"
       changed_when: false
 
     - name: Show effective versions (from inventory all.vars)
-      debug:
+      ansible.builtin.debug:
         msg:
           - "talos_version={{ talos_version | default('unset') }}"
           - "k8s_version={{ k8s_version | default('unset') }}"
+          - "cluster_endpoint={{ cluster_endpoint }}"
+          - "talos_endpoints={{ talos_endpoints }}"
 
   roles:
     - configure-cluster

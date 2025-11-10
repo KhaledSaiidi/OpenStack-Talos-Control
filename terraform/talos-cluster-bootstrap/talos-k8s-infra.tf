@@ -366,6 +366,12 @@ resource "null_resource" "ansible_provision" {
     null_resource.wait_for_talos,
     local_file.ansible_inventory,
   ]
+
+  triggers = {
+    talos_role_hash = local.talos_role_hash
+    tfvars_hash     = filesha1("${path.module}/terraform.tfvars")
+    inventory_hash  = local.talos_inventory_hash
+  }
   provisioner "local-exec" {
     command = <<EOF
       PYTHONUNBUFFERED=1 ansible-playbook \

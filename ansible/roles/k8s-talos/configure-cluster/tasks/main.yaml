@@ -1,12 +1,33 @@
 ---
 - name: Ensure Talos outputs dir exists
-  file:
+  ansible.builtin.file:
     path: "{{ talos_dir }}"
     state: directory
     mode: '0755'
 
+- name: Detect existing control plane config
+  ansible.builtin.stat:
+    path: "{{ talos_dir }}/controlplane.yaml"
+  register: talos_controlplane_config
+
+- name: Build Talos config fingerprint
+  ansible.builtin.set_fact:
+    talos_config_inputs:
+      cluster_name: "{{ cluster_name }}"
+      cluster_endpoint: "{{ cluster_endpoint }}"
+      k8s_version: "{{ k8s_version }}"
+      talos_version: "{{ talos_version | default('') }}"
+      install_disk: "{{ talos_install_disk | default('/dev/vda') }}"
+
+- name: Record Talos config fingerprint
+  ansible.builtin.copy:
+    dest: "{{ talos_dir }}/config-inputs.json"
+    mode: '0644'
+    content: "{{ talos_config_inputs | to_nice_json }}"
+  register: talos_config_inputs_file
+
 - name: Write install patch (disk + wipe)
-  copy:
+  ansible.builtin.copy:
     dest: "{{ talos_dir }}/patch-install.yaml"
     mode: '0644'
     content: |
@@ -16,17 +37,17 @@
           wipe: true
 
 - name: Show the talosctl gen config command
-  debug:
+  ansible.builtin.debug:
     msg: >
-      {{ talosctl }} gen config {{ cluster_name }} https://{{ control_plane }}:6443
+      {{ talosctl }} gen config {{ cluster_name }} https://{{ cluster_endpoint }}:6443
       --kubernetes-version {{ k8s_version }}
       --output-dir {{ talos_dir }}
       --config-patch @{{ talos_dir }}/patch-install.yaml
       {{ '--force' if force_gen_config | default(false) | bool else '' }}
 
 - name: Generate Talos cluster configs (controlplane.yaml, worker.yaml, talosconfig)
-  command: >
-    {{ talosctl }} gen config {{ cluster_name }} https://{{ control_plane }}:6443
+  ansible.builtin.command: >
+    {{ talosctl }} gen config {{ cluster_name }} https://{{ cluster_endpoint }}:6443
     --kubernetes-version {{ k8s_version }}
     --output-dir {{ talos_dir }}
     --config-patch @{{ talos_dir }}/patch-install.yaml
@@ -34,4 +55,5 @@
   register: gen_result
   changed_when: gen_result.rc == 0
   when: force_gen_config | default(false) | bool
-        or (talos_dir ~ '/controlplane.yaml') is not file
+        or not talos_controlplane_config.stat.exists
+        or talos_config_inputs_file.changed

@@ -1,23 +1,25 @@
 ---
 - name: Apply controlplane config to first CP (install + reboot)
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} apply-config --insecure
     --nodes {{ control_plane }}
     --file {{ talos_dir }}/controlplane.yaml
+    --talosconfig {{ talosconfig }}
   register: cp0_apply
   changed_when: cp0_apply.rc == 0
 
 # Make the reboot explicit and resilient on the first CP
 - name: Wait for Talos API to go down (reboot starting) on first CP
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ control_plane }}"
     port: 50000
     state: drained
     timeout: 300
-  ignore_errors: true
+  register: api_down_result
+  failed_when: api_down_result.failed and 'Connection refused' not in api_down_result.msg
 
 - name: Wait for Talos API to come back (post-install) on first CP
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ control_plane }}"
     port: 50000
     state: started
@@ -25,26 +27,28 @@
     timeout: 900
 
 - name: Apply controlplane config to remaining CPs (if any)
-  command: >
+  ansible.builtin.command: >
     {{ talosctl }} apply-config --insecure
     --nodes {{ other_masters | join(',') }}
     --file {{ talos_dir }}/controlplane.yaml
+    --talosconfig {{ talosconfig }}
   when: other_masters | length > 0
   register: cpn_apply
   changed_when: cpn_apply.rc == 0
 
 - name: Wait for Talos API to go down (reboot) on remaining CPs
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ item }}"
     port: 50000
     state: drained
     timeout: 300
-  ignore_errors: true
+  register: api_down_result
+  failed_when: api_down_result.failed and 'Connection refused' not in api_down_result.msg
   loop: "{{ other_masters }}"
   when: other_masters | length > 0
 
 - name: Wait for Talos API to come back (post-install) on remaining CPs
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ item }}"
     port: 50000
     state: started

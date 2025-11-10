@@ -1,40 +1,91 @@
+########################################
+# Terraform
+########################################
 # Local .terraform directories
 .terraform/
+**/.terraform/*
 
-# .tfstate files
+# Terraform state files
 *.tfstate
 *.tfstate.*
 
-# Crash log files
+# Crash logs
 crash.log
 crash.*.log
 
-# Ignore override files as they are usually used to override resources locally and so
-# are not checked in
+# Override files (local customizations)
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Ignore transient lock info files created by terraform apply
+# Terraform lock and config
 .terraform.tfstate.lock.info
-
-# Include override files you do wish to add to version control using negated pattern
-# !example_override.tf
-
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-# example: *tfplan*
-
-# Ignore CLI configuration files
+.terraform.lock.hcl
 .terraformrc
 terraform.rc
-.terraform.lock.hcl
+
+# Private keys or secrets
 openstack_private_key.pem
-.vscode/terraform/k8s-libvirt/talos-image/
-ansible/roles/k8s-talos/talos-outputs/
+*.pem
+*.key
+*.secret
+*.vault_pass
+*.credentials
+
+# Terraform artifacts
+*.plan
+*.tfvars
+*.tfvars.json
+
+########################################
+# VS Code
+########################################
+.vscode/
+*.code-workspace
+!.vscode/settings.example.json  # allow shared settings templates
+
+########################################
+# Ansible
+########################################
+.ansible/
+*.retry
+*.log
+ansible/inventory.yaml
+ansible/inventory/*.ini
+ansible/inventory/*.yml
+ansible/roles/*/talos-outputs/
+ansible/tmp/
+ansible/collections/
+
+########################################
+# Talos / Libvirt / Bootstrap artifacts
+########################################
+# Talos images and inventories
 terraform/k8s-libvirt/talos-image/
 terraform/k8s-libvirt/ansible_inventory.yaml
 terraform/talos-cluster-bootstrap/vmlinuz-amd64
 terraform/talos-cluster-bootstrap/initramfs-amd64.xz
-terraform/talos-cluster-bootstrap/openstack-infra-automation/ansible/roles/k8s-talos/talos-outputs/
 terraform/talos-cluster-bootstrap/ansible_inventory.yaml
+terraform/talos-cluster-bootstrap/openstack-infra-automation/ansible/roles/k8s-talos/talos-outputs/
+
+########################################
+# System and Editor junk
+########################################
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
+*.log
+~*
+
+########################################
+# Python / Scripts cache
+########################################
+__pycache__/
+*.pyc
+*.pyo
+*.pytest_cache/
+.cache/

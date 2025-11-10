@@ -12,21 +12,23 @@ storage_pool_path = "/var/lib/libvirt/images"
 
 enable_ansible = true
 
-# Node counts
-master_count = 1
-worker_count = 2
+# Node counts (HA control plane + room for management add-ons)
+master_count = 3
+worker_count = 3
 
-# master node resources
-master_vcpus           = 2
-master_memory          = 10240 # 10 GiB
+# master node resources (Talos control plane, etcd, CAPI controllers)
+master_vcpus           = 4
+master_memory          = 16384        # 16 GiB
+master_root_disk_size  = 107374182400 # 100 GiB
 master_extra_disks     = 1
-master_extra_disk_size = 68719476736 # 64 GiB
+master_extra_disk_size = 214748364800 # 200 GiB data disk
 
-# worker node resources
-worker_vcpus           = 2
-worker_memory          = 8192 # 8 GiB each
+# worker node resources (Argo CD, monitoring stacks, build workloads)
+worker_vcpus           = 8
+worker_memory          = 32768        # 32 GiB
+worker_root_disk_size  = 161061273600 # 150 GiB
 worker_extra_disks     = 1
-worker_extra_disk_size = 68719476736 # 64 GiB
+worker_extra_disk_size = 214748364800 # 200 GiB data disk
 
 # Network configuration
 network_mode = "nat"

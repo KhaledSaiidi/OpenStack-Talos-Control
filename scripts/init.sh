@@ -28,6 +28,7 @@ packages=(
   xsltproc
   software-properties-common
   gnupg
+  jq
 )
 to_install=()
 for pkg in "${packages[@]}"; do
@@ -146,4 +147,4 @@ echo -e "${YELLOW}Installing Ansible …${NC}"
 apt install -y ansible
 echo -e "${GREEN}ansible $(ansible --version | head -n1) ready.${NC}"
 
-echo -e "${GREEN}Host preparation complete. Run 'terraform apply'.${NC}"
+echo -e "${GREEN}Host preparation complete. Run Bootstraps.${NC}"
