@@ -1,11 +1,21 @@
-## OpenStack + Talos GitOps Lab
+# 🚀 StackTalosOpsEngine: Production-Grade Cloud Automation
 
-This repository automates a two-layer lab environment:
+This repository delivers a production-grade automation engine designed for deploying and managing a fully declarative cloud platform. Utilizing Infrastructure as Code (IaC) and a multi-layered GitOps workflow, the system establishes a robust, self-managing environment where OpenStack serves as the virtualized substrate, and a Talos-based cluster handles continuous operations.
 
-1. **Infrastructure layer** – Terraform (via Libvirt) provisions the complete virtualization stack, including OpenStack controller, compute, and storage VMs, as well as Talos-based Kubernetes nodes. Ansible then deploys OpenStack using OpenStack-Ansible (OSA) on the dedicated OpenStack VMs and bootstraps a Talos Kubernetes cluster on the remaining Talos nodes.
-2. **Management layer** – The Talos cluster serves as the management plane, where Argo CD continuously reconciles Cluster API (CAPI) resources to instantiate tenant workloads within the freshly deployed OpenStack cloud. This creates a self-managing, closed-loop GitOps workflow that spans from bare metal provisioning to application deployment.
+The design targets repeatable production bring-up and lifecycle management, achieving a closed-loop system that spans from the virtualization host up to application delivery.
 
-To establish a fully automated, GitOps-driven lifecycle management model where OpenStack provides the virtualized infrastructure substrate, and Talos + Argo CD orchestrate the higher-level services and workloads on top.
+## ⚙️ Multi-Layer Architecture
+
+This system is built upon two distinct, yet interconnected, declarative layers:
+### 1. Infrastructure Layer (The Substrate)
+This layer establishes the core virtualization and foundational cloud components:
+* **Provisioning (Terraform/Libvirt):** Provisions all VMs (OpenStack controllers, computes, storage) and the initial **Talos Kubernetes nodes**.
+* **Deployment (Ansible/OSA):** Deploys the full **OpenStack** cloud on its dedicated VMs and bootstraps the **Talos Management Cluster** on the Kubernetes nodes.
+### 2. Management Layer (The Ops Engine)
+The Talos Cluster acts as the single, declarative management plane for all tenant resources:
+* **Orchestration (FluxCD/CAPI):** The cluster hosts FluxCD and Cluster API.
+* **Control Flow:** CAPI continuously monitors Git and uses the OpenStack APIs to provision, manage, and reconcile all tenant workloads (VMs, networking, storage) on demand.
+This workflow enforces a **GitOps-driven lifecycle model** where every component, from the base VMs to the deployed applications, is consistently controlled and managed from Git.
 
 ---
 
@@ -34,9 +44,9 @@ To establish a fully automated, GitOps-driven lifecycle management model where O
 │ terraform/talos-cluster-bootstrap                  │
 │  - Talos control-plane + worker VMs                │
 │  - ansible/roles/k8s-talos bootstraps the cluster  │
-│  - Argo CD + Cluster API installed on Talos        │
+│  - Flux + Cluster API installed on Talos           │
 └──────┬─────────────────────────────────────────────┘
-       │ Argo CD reconciles Cluster API manifests
+       │ Flux reconciles Cluster API manifests
 ┌──────▼─────────────────────────────────────────────┐
 │ OpenStack (Nova/Cinder/Neutron)                    │
 │  - CAPI uses OpenStack APIs to create tenant VMs   │
@@ -49,14 +59,17 @@ To establish a fully automated, GitOps-driven lifecycle management model where O
 ## Repository Layout
 
 ```
-scripts/                         # Host bootstrap helpers (init.sh)
+scripts/
+  ├─ init.sh                   # Host prerequisite installer
+  ├─ bootstrap-openstack.sh    # Terraform/Ansible wrapper for OpenStack stack
+  └─ bootstrap-talos.sh        # Terraform/Ansible wrapper for Talos stack
 terraform/
-  ├─ openstack-libvirt/          # Libvirt module for OpenStack VMs
-  └─ talos-cluster-bootstrap/    # Talos VM module
+  ├─ openstack-libvirt/        # Libvirt module for OpenStack VMs
+  └─ talos-cluster-bootstrap/  # Talos VM module
 ansible/
   └─ roles/
-       ├─ openstack/             # OSA orchestration (site + roles)
-       └─ k8s-talos/             # Talos bootstrap and addons
+       ├─ openstack/           # OSA orchestration (site + roles)
+       └─ k8s-talos/           # Talos bootstrap and management addons (Flux, CAPI)
 ```
 
 ---
@@ -64,48 +77,47 @@ ansible/
 ## Prerequisites
 
 - Ubuntu/Debian host with hardware virtualization (KVM) and at least:
-  - 128 GiB RAM, 48 vCPUs, >2 TB fast storage (defaults allocate large QCOW images)
+  - 128 GiB RAM, 48 vCPUs, >2 TB fast storage (default QCOW images are large)
   - Internet access for Ubuntu cloud images, OpenStack packages, Talos artifacts
 - Ability to run commands with sudo/root privileges
 
-Run `scripts/init.sh` once as root to install libvirt/qemu, enable services, and place `talosctl`, `kubectl`, `helm`, `argocd`, Terraform, and Ansible.
-
----
-
-## Workflow
-
-### 1. Host preparation
+Run the host preparation script once:
 
 ```bash
 sudo ./scripts/init.sh
 ```
 
-The script updates apt, installs libvirt/qemu/OVMF/dnsmasq, enables services, configures `/etc/libvirt/qemu.conf` for nested virtualization, and installs all required CLIs.
+It updates apt, installs libvirt/qemu/OVMF/dnsmasq and supporting tooling (`talosctl`, `kubectl`, `helm`, Terraform, Ansible, jq), and configures `/etc/libvirt/qemu.conf` plus system services.
 
-### 2. Provision and configure OpenStack
+---
+
+## Workflow
+
+> **Order matters:** bootstrap OpenStack first so Talos has an infrastructure target to manage. Once OpenStack is healthy, bootstrap the Talos management cluster.
+
+### 1. Provision and configure OpenStack
+
+Use the production bootstrap helper rather than invoking Terraform manually:
 
 ```bash
-cd terraform/openstack-libvirt
-terraform init
-terraform apply -var-file=terraform.tfvars
+./scripts/bootstrap-openstack.sh \
+  --action apply \
+  --var-file terraform.tfvars
 ```
 
-What Terraform + Ansible deliver:
-- Libvirt storage pool and NAT network
-- Ubuntu-based controller/compute/storage VMs sized per OSA requirements (16 vCPU & 48 GiB RAM controllers, 16 vCPU & 32 GiB computes, 8 vCPU & 32 GiB storage, with large root/extra disks for MariaDB/logs/Cinder)
-- Generated SSH key + cloud-init configuration for the `ubuntu` user
-- Auto-generated Ansible inventory and secrets
-- Execution of `ansible/roles/openstack/site.yaml`, which:
-  1. Waits for SSH/cloud-init
-  2. Installs base packages and prepares the `cinder-volumes` VG (`lvg` ensures idempotence)
-  3. Clones OpenStack-Ansible `stable/epoxy`, renders `openstack_user_config.yml` and `user_variables.yml`, generates passwords, then runs `setup-hosts.yml`, `setup-infrastructure.yml`, and `setup-openstack.yml`
+Key flags:
+- `--action <plan|apply|destroy>` — defaults to `apply`
+- `--var-file` — alternate tfvars (relative or absolute)
+- `--workspace` — optional Terraform workspace
+- `--parallelism` — cap Terraform concurrency
+- `--upgrade` — run `terraform init -upgrade`
 
-Useful Terraform outputs:
-- `ansible_inventory_file` – inventory path for manual reruns
-- `ssh_private_key_path` – private key used for the VMs
-- `{controller,compute,storage}_nodes` – VM IP/MAC metadata
+Outputs from the script include:
+- `ansible_inventory_file` — inventory path for manual OSA reruns
+- `ssh_private_key_path` — SSH key used for the OpenStack VMs
+- `{controller,compute,storage}_nodes` — network metadata for each VM
 
-Verification (on controller):
+Validation snippet (controller node):
 
 ```bash
 ssh -i terraform/openstack-libvirt/openstack_private_key.pem ubuntu@<controller_ip>
@@ -116,41 +128,43 @@ openstack compute service list
 lxc-ls -f
 ```
 
-### 3. Bootstrap the Talos management cluster
+### 2. Bootstrap the Talos management cluster
+
+Once OpenStack is online, bring up the Talos management plane:
 
 ```bash
-cd terraform/talos-cluster-bootstrap
-terraform init
-terraform apply -var-file=terraform.tfvars
+./scripts/bootstrap-talos.sh \
+  --action apply \
+  --var-file terraform.tfvars
 ```
 
-The Talos module mirrors the OpenStack pattern: Terraform stands up the control-plane/worker VMs, builds an inventory, then the `k8s-talos` role:
-- Installs Talos on each VM
-- Bootstraps the Talos control plane and joins workers
-- Installs Argo CD plus the Cluster API components configured for the OpenStack cloud
+The script mirrors the OpenStack helper (same flags) and invokes Terraform for `terraform/talos-cluster-bootstrap`. Terraform provisions Talos control-plane and worker VMs, generates the required inventories, and `ansible/roles/k8s-talos`:
+- Installs Talos on every VM and bootstraps the control plane
+- Joins workers and exposes kubeconfig via `talosctl`
+- Installs Flux plus Cluster API configured for the OpenStack cloud so Git reconciliation drives tenant infrastructure
 
-Once Argo CD is up, log in (password output from the role) and point it at the Git repo containing Cluster API manifests. CAPI will use the OpenStack credentials to provision tenant clusters and workloads on demand.
+The helper prints summarized outputs for master/worker IPs and the generated Talos inventory (`terraform/talos-cluster-bootstrap/ansible_inventory.yaml`), making it easy to rerun Ansible or `talosctl` commands.
 
 ---
 
 ## Operations & Customization
 
-- **Scaling OpenStack** – edit `terraform/openstack-libvirt/terraform.tfvars` (`*_count`, CPU/RAM/disk). Terraform hashes the Ansible role content and tfvars, so changes automatically trigger a redeploy.
-- **Network adjustments** – change `network_cidr` in Terraform and update the container/tunnel/storage CIDRs in `ansible/roles/openstack/site.yaml`.
-- **OSA release** – set `osa_branch` within the site play to follow another stable series.
-- **Cinder backing disk** – override `cinder_lvm_device` if the extra disk is not `/dev/vdb`.
-- **Talos versions** – tune variables under `terraform/talos-cluster-bootstrap` or defaults in `ansible/roles/k8s-talos`.
-- **Manual reruns** – `ansible-playbook -i terraform/openstack-libvirt/ansible_inventory.yaml ansible/roles/openstack/site.yaml`.
-- **Cleanup** – run `terraform destroy -var-file=terraform.tfvars` in each module to remove resources.
+- **Scaling OpenStack** – edit `terraform/openstack-libvirt/terraform.tfvars` (`*_count`, CPU/RAM/disk). Terraform hashes the Ansible content and tfvars, so reapplying reconciles changes automatically.
+- **Network adjustments** – change `network_cidr` inside Terraform modules and update container/tunnel/storage CIDRs in `ansible/roles/openstack/site.yaml`.
+- **OSA release** – set `osa_branch` within the OpenStack role to move between stable series.
+- **Cinder backing disk** – override `cinder_lvm_device` if the extra disk differs from `/dev/vdb`.
+- **Talos releases / Flux config** – tune variables under `terraform/talos-cluster-bootstrap` or defaults in `ansible/roles/k8s-talos` to select Talos versions, Flux Git sources, and Cluster API settings.
+- **Manual reruns** – `ansible-playbook -i terraform/openstack-libvirt/ansible_inventory.yaml ansible/roles/openstack/site.yaml` for OpenStack, or reuse the generated Talos inventory with the k8s role.
+- **Cleanup** – run `./scripts/bootstrap-<stack>.sh --action destroy` with the same tfvars/workspace settings to tear down each layer.
 
-Expect ~30–60 minutes for the initial OpenStack deployment; Talos typically finishes within minutes once VMs are running. Reapplying Terraform reconciles both infrastructure and software layers, keeping the lab reproducible.
+Expect roughly 30–60 minutes for the initial OpenStack deployment. The Talos bootstrap typically completes within minutes once the VMs are available. Re-running the bootstrap scripts is idempotent: Terraform reconciles infrastructure and the downstream Ansible roles/Flux sources ensure software state converges.
 
 ---
 
 ## Next Steps
 
-1. Configure kubectl access to the Talos cluster (`talosctl kubeconfig ...`) and install Argo CD.
-2. Author Cluster API manifests (`Cluster`, `OpenStackCluster`, `MachineDeployment`, `OpenStackMachineTemplate`) in Git and let Argo CD reconcile them.
-3. Observe Cluster API provisioning Nova instances inside OpenStack, then deploy applications via GitOps workflows layered on those tenant clusters.
+1. Generate kubeconfig from Talos (`talosctl kubeconfig ...`) and verify Flux reconciliation status (`kubectl -n flux-system get kustomizations,sources`).
+2. Author Cluster API manifests (`Cluster`, `OpenStackCluster`, `MachineDeployment`, `OpenStackMachineTemplate`) in your Flux source repository so Flux continuously deploys tenant clusters onto OpenStack.
+3. Layer additional GitOps workloads or platform services on top of the Talos management cluster; Flux will fan out the changes through Cluster API into the OpenStack-backed infrastructure.
 
-With this stack you control every layer—from the libvirt host through OpenStack infrastructure to application workloads—using declarative artifacts. Use it to test upgrades, validate new OpenStack services, or practice GitOps patterns before promoting changes to production environments.
+This engine gives you complete, declarative control—from the libvirt host through the OpenStack substrate to Kubernetes workloads governed by Flux—ready for production-oriented automation, testing, and iterative delivery.
