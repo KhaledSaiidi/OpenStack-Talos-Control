@@ -61,3 +61,4 @@
     - apply-config
     - bootstrap-cluster
     - add-workers
+    - install-flux

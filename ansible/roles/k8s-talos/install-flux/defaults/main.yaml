@@ -1,0 +1,3 @@
+---
+# Location of the Flux install manifest to apply to the cluster.
+flux_install_manifest_url: https://github.com/fluxcd/flux2/releases/latest/install.yaml
