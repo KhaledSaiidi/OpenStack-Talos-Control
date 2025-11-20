@@ -61,4 +61,5 @@
     - apply-config
     - bootstrap-cluster
     - add-workers
+    - install-calico
     - install-flux
