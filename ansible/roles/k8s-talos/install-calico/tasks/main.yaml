@@ -1,0 +1,62 @@
+---
+- name: Install Calico networking
+  environment:
+    KUBECONFIG: "{{ talos_dir }}/kubeconfig"
+  block:
+    - name: Ensure kubectl is installed locally
+      ansible.builtin.command: kubectl version --client
+      changed_when: false
+
+    - name: Wait for Kubernetes API to respond
+      ansible.builtin.command: kubectl --request-timeout=15s version --short
+      register: kubernetes_api
+      retries: 10
+      delay: 12
+      until: kubernetes_api.rc == 0
+      changed_when: false
+
+    - name: Download Calico manifest
+      ansible.builtin.get_url:
+        url: "{{ calico_manifest_url }}"
+        dest: "{{ talos_dir }}/calico.yaml"
+        mode: "0644"
+
+    - name: Set Calico IPv4 pool CIDR to match cluster
+      ansible.builtin.replace:
+        path: "{{ talos_dir }}/calico.yaml"
+        regexp: '^(\\s*value: )\"192\\.168\\.0\\.0\\/16\"'
+        replace: '\\1"{{ calico_ipv4pool_cidr }}"'
+      when: calico_ipv4pool_cidr | length > 0
+
+    - name: Apply Calico manifest
+      ansible.builtin.command: kubectl apply -f {{ talos_dir }}/calico.yaml
+      register: calico_apply
+      changed_when: "'created' in calico_apply.stdout or 'configured' in calico_apply.stdout"
+
+    - name: Wait for Calico CRDs to be established
+      ansible.builtin.command: >
+        kubectl wait --for=condition=Established
+        crd/ippools.crd.projectcalico.org
+        crd/felixconfigurations.crd.projectcalico.org
+        --timeout=180s
+      register: calico_crds
+      retries: 3
+      delay: 10
+      until: calico_crds.rc == 0
+      changed_when: false
+
+    - name: Wait for calico-node DaemonSet to be available
+      ansible.builtin.command: kubectl -n kube-system rollout status daemonset/calico-node --timeout=600s
+      register: calico_node_rollout
+      retries: 2
+      delay: 15
+      until: calico_node_rollout.rc == 0
+      changed_when: false
+
+    - name: Wait for calico-kube-controllers Deployment to be available
+      ansible.builtin.command: kubectl -n kube-system rollout status deployment/calico-kube-controllers --timeout=300s
+      register: calico_ctrl_rollout
+      retries: 2
+      delay: 15
+      until: calico_ctrl_rollout.rc == 0
+      changed_when: false

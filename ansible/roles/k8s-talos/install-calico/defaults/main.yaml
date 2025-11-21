@@ -1,0 +1,5 @@
+---
+# Calico installation source and network settings.
+calico_manifest_url: https://raw.githubusercontent.com/projectcalico/calico/v3.26.4/manifests/calico.yaml
+# Align with your cluster pod CIDR (Talos default gen config uses 10.244.0.0/16).
+calico_ipv4pool_cidr: "10.244.0.0/16"

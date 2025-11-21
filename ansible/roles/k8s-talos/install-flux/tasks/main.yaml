@@ -1,0 +1,47 @@
+- name: Install Flux CD once the cluster is Ready
+  environment:
+    KUBECONFIG: "{{ talos_dir }}/kubeconfig"
+  block:
+    - name: Ensure kubectl is installed locally
+      ansible.builtin.command: kubectl version --client
+      changed_when: false
+
+    - name: Wait for Kubernetes API to respond with kubeconfig (cluster up)
+      ansible.builtin.command: kubectl --request-timeout=15s version --short
+      register: kubernetes_api
+      retries: 10
+      delay: 12
+      until: kubernetes_api.rc == 0
+      changed_when: false
+
+    - name: Wait for all nodes to report Ready
+      ansible.builtin.command: kubectl wait --for=condition=Ready nodes --all --timeout=600s
+      register: nodes_ready
+      retries: 3
+      delay: 30
+      until: nodes_ready.rc == 0
+      changed_when: false
+
+    - name: Download Flux install manifest
+      ansible.builtin.get_url:
+        url: "{{ flux_install_manifest_url }}"
+        dest: "{{ talos_dir }}/flux-install.yaml"
+        mode: "0644"
+
+    - name: Install / reconcile Flux components
+      ansible.builtin.command: kubectl apply -f {{ talos_dir }}/flux-install.yaml
+      register: flux_apply
+      changed_when: "'created' in flux_apply.stdout or 'configured' in flux_apply.stdout"
+
+    - name: Wait for Flux deployments to become available
+      ansible.builtin.command: kubectl -n flux-system rollout status deployment/{{ item }} --timeout=180s
+      register: flux_rollout
+      retries: 5
+      delay: 15
+      until: flux_rollout.rc == 0
+      changed_when: false
+      loop:
+        - source-controller
+        - kustomize-controller
+        - helm-controller
+        - notification-controller
