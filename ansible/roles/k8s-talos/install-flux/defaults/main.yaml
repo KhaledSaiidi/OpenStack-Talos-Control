@@ -1,3 +1,8 @@
 ---
 # Location of the Flux install manifest to apply to the cluster.
 flux_install_manifest_url: https://github.com/fluxcd/flux2/releases/latest/install.yaml
+
+# Where to find the repo's GitOps content (relative to this playbook dir).
+# Defaults assume the playbook is ansible/roles/k8s-talos/site.yaml and repo root contains gitops/.
+flux_gitops_root_dir: "{{ playbook_dir }}/../../../gitops"
+flux_gitops_flux_system_dir: "{{ flux_gitops_root_dir }}/flux-system"

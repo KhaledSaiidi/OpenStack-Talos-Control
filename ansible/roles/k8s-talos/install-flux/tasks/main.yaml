@@ -45,3 +45,18 @@
         - kustomize-controller
         - helm-controller
         - notification-controller
+
+    - name: Verify flux-system manifests path exists
+      ansible.builtin.stat:
+        path: "{{ flux_gitops_flux_system_dir }}"
+      register: flux_gitops_dir
+
+    - name: Fail if flux-system manifests are missing
+      ansible.builtin.fail:
+        msg: "Flux self-manage manifests not found at {{ flux_gitops_flux_system_dir }}. Set flux_gitops_flux_system_dir or create gitops/flux-system/."
+      when: not flux_gitops_dir.stat.isdir
+
+    - name: Apply GitRepository/Kustomization so Flux self-manages from repo
+      ansible.builtin.command: kubectl apply -f {{ flux_gitops_flux_system_dir }}
+      register: flux_gitops_apply
+      changed_when: "'configured' in flux_gitops_apply.stdout or 'created' in flux_gitops_apply.stdout"
